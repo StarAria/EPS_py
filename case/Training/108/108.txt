@@ -1,0 +1,3 @@
+108		//case name
+153		//order of C and G and rows of B
+1		//cols of B

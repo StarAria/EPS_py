@@ -1,0 +1,3 @@
+28		//case name
+136		//order of C and G and rows of B
+1		//cols of B
