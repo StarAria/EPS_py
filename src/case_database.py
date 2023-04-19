@@ -17,13 +17,17 @@ from scipy.linalg import solve
 from scipy.sparse.linalg import splu
 
 # constant
-ERRORMAX = 1e10
-ERRORSAMPLECOUNT = 1000
+ERROR_MAX = 1e10
+ERROR_SAMPLE_COUNT = 1000
+TRAINING_CASE_DIR = "../case/Training"
+PREDICTING_CASE_DIR = "../case/Training"
 
 class CaseData(object):
-    # Data for single case
-    # attributes: name, order, bCol, c, g, b
-    # function: setB, setC, setG, featureExtract, arnoldi, errorEval, measureMinError
+    '''
+    Data for single case
+    Attributes: name, order, bCol, c, g, b
+    Function: setB, setC, setG, featureExtract, arnoldi, errorEval, measureMinError
+    '''
 
     def __init__(self, name, order, bCol):
         self.name = name
@@ -167,7 +171,7 @@ class CaseData(object):
         step: sample step of the 2nd expansion point order.
         '''
         feature = self.featureExtract()
-        error = ERRORMAX
+        error = ERROR_MAX
 
         for i in range(1, totalOrder):
             k1 = totalOrder - i
@@ -179,13 +183,13 @@ class CaseData(object):
                 v1 = self.arnoldi(k1, s1) 
                 v2 = self.arnoldi(k2, s2)
                 if(type(v1) == int):
-                    error1 = ERRORMAX
+                    error1 = ERROR_MAX
                 else:
-                    error1 = self.errorEval(v1, maxFreq, ERRORSAMPLECOUNT)
+                    error1 = self.errorEval(v1, maxFreq, ERROR_SAMPLE_COUNT)
                 if(type(v2) == int):
-                    error2 = ERRORMAX
+                    error2 = ERROR_MAX
                 else:
-                    error2 = self.errorEval(v2, maxFreq, ERRORSAMPLECOUNT)
+                    error2 = self.errorEval(v2, maxFreq, ERROR_SAMPLE_COUNT)
                 if error1 + error2 <= error:
                     error = error1 + error2
                     result = feature + [i, j, error]
@@ -194,6 +198,57 @@ class CaseData(object):
         return result
 
 
+class CaseDataBase(object):
+    '''
+    Database for cases. Training and predicting cases are included.
+    Apply access and parser to outer files.
+    Attributes: _trainingCaseList, _predictingCaseList, trainingFeatureTable, predictingFeatureTable
+    Function: parser, reload, measure, trainingList, predictingList, getFeature
+    '''
+
+    def __init__(self):
+        '''
+        Read files from case directory.
+        Build _trainingCaseList and _predictingCaseList using parser function.
+        '''
+        pass
+
+    def parser(self, fileName):
+        '''
+        Read and build sparse matrix from file.
+        C, G and B matrix files in OOC format are supported.
+        '''
+        pass
+
+    def trainingFeatureTable(self):
+        '''
+        Access to _trainingFeatureTable.
+        '''
+        return self._trainingFeatureTable()
+    
+    def predictingFeatureTable(self):
+        '''
+        Access to _predictingFeatureTable.
+        '''
+        return self._predictingFeatureTable()
+
+    def getFeature(self, caseName):
+        '''
+        Find the feature and corresponding 2nd expansion point with minimum error.
+        '''
+        pass
+
+    def reload(self):
+        '''
+        Reload data from case directory.
+        '''
+        pass
+
+    def measure(self):
+        '''
+        Build _trainingFeatureTable and _predictingFeatureTable from corresponding CaseList.
+        '''
+        pass
 
 
 
