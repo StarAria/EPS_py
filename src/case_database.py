@@ -203,7 +203,8 @@ class CaseDataBase(object):
     Database for cases. Training and predicting cases are included.
     Apply access and parser to outer files.
     Attributes: _trainingCaseList, _predictingCaseList, trainingFeatureTable, predictingFeatureTable
-    Function: parser, reload, measure, trainingList, predictingList, getFeature
+    Function: parser, reload, measure, trainingList, predictingList, getFeature, 
+    saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
     def __init__(self):
@@ -234,19 +235,46 @@ class CaseDataBase(object):
 
     def getFeature(self, caseName):
         '''
-        Find the feature and corresponding 2nd expansion point with minimum error.
+        Find the feature and corresponding 2nd expansion point with minimum error with caseName.
         '''
         pass
 
     def reload(self):
         '''
         Reload data from case directory.
+        Rebuild _trainingCaseList and _predictingCaseList.
+        This method do not rebuild _trainingFeatureTable and _predictingFeatureTable.
         '''
         pass
 
     def measure(self):
         '''
-        Build _trainingFeatureTable and _predictingFeatureTable from corresponding CaseList.
+        Build _trainingFeatureTable and _predictingFeatureTable from corresponding _CaseList.
+        This method will delete the existing _FeatureTable.
+        '''
+        pass
+
+    def saveTrainingFeature(self, fileName):
+        '''
+        Save _trainingFeatureTable to specific file.
+        '''
+        pass
+
+    def savePredictingFeature(self, fileName):
+        '''
+        Save _PredictingFeatureTable to specific file.
+        '''
+        pass
+
+    def loadTrainingFeature(self, fileName):
+        '''
+        Load _trainingFeatureTable from specific file.
+        '''
+        pass
+
+    def loadPredictingFeature(self, fileName):
+        '''
+        Load _PredictingFeatureTable from specific file.
         '''
         pass
 
