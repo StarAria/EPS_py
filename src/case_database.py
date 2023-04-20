@@ -203,7 +203,7 @@ class CaseDataBase(object):
     Database for cases. Training and predicting cases are included.
     Apply access and parser to outer files.
     Attributes: _trainingCaseList, _predictingCaseList, trainingFeatureTable, predictingFeatureTable
-    Function: parser, reload, measure, trainingList, predictingList, getFeature, 
+    Function: parser, reload, measureTrainingData, extractPredtingFeature, trainingList, predictingList, 
     saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
@@ -233,26 +233,33 @@ class CaseDataBase(object):
         '''
         return self._predictingFeatureTable()
 
-    def getFeature(self, caseName):
-        '''
-        Find the feature and corresponding 2nd expansion point with minimum error with caseName.
-        '''
-        pass
-
-    def reload(self):
+    def reload(self, dataSet = "both", trainingDir = TRAINING_CASE_DIR, predictingDir = PREDICTING_CASE_DIR):
         '''
         Reload data from case directory.
-        Rebuild _trainingCaseList and _predictingCaseList.
+        Rebuild _trainingCaseList and/or _predictingCaseList.
         This method do not rebuild _trainingFeatureTable and _predictingFeatureTable.
+        dataSet: "training" ---- Rebuild _trainingCaseList from trainingDir
+                 "predicting" ---- Rebuild _predictingCaseList from predictingDir
+                 "both" ---- rebuild both dir
+                 otherwise ---- do not rebuild
+        trainingDir: training case directory. TRAINING_CASE_DIR as default.
+        predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
         '''
         pass
 
-    def measure(self):
+    def measureTrainingData(self):
         '''
-        Build _trainingFeatureTable and _predictingFeatureTable from corresponding _CaseList.
-        This method will delete the existing _FeatureTable.
+        Build _trainingFeatureTable from _trainingCaseList.
+        This method will delete the existing _trainingFeatureTable.
+        May be time-consuming.
         '''
         pass
+
+    def extractPredtingFeature(self):
+        '''
+        Build _predictingFeatureTable from _predictingCaseList.
+        This method will delete the existing _predictingFeatureTable.
+        '''
 
     def saveTrainingFeature(self, fileName):
         '''
