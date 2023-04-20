@@ -18,9 +18,10 @@ from scipy.sparse.linalg import splu
 
 # constant
 ERROR_MAX = 1e10
-ERROR_SAMPLE_COUNT = 1000
+ERROR_SAMPLE_COUNT = 500
+FREQ_LIMIT = 2e10
 TRAINING_CASE_DIR = "../case/Training"
-PREDICTING_CASE_DIR = "../case/Training"
+PREDICTING_CASE_DIR = "../case/Predicting"
 
 class CaseData(object):
     '''
@@ -82,7 +83,7 @@ class CaseData(object):
     def arnoldi(self, k, s):
         '''
         Arnoldi method to get the orthonormal matrix V
-        Return -1 if the matrix d = g + s * c is singular
+        May throw error if the matrix d = g + s * c is singular
         k: reduction order
         s: expansion point frequency
         '''
@@ -93,8 +94,6 @@ class CaseData(object):
         v = np.matrix(np.zeros((self.order, k)))
 
         d = g + s * c
-        if np.linalg.det(d) == 0:
-            return -1
         s = splu(csc_matrix(d))
         r = s.solve(b)
         r = r / np.linalg.norm(r)
@@ -138,6 +137,7 @@ class CaseData(object):
     def errorEval(self, v, fLim, sampleCnt):
         '''
         Evaluate order reduction error with specific tranformation matrix V.
+        May throw error when the matrix to be solved is singulr.
         v: tranformation matrix given by Arnoldi method.
         fLim: measurement frenquency upper limit.
         sampleCnt: total measurement sample point count.
@@ -180,16 +180,14 @@ class CaseData(object):
             while j <= maxFreq:
                 s1 = 0
                 s2 = j
-                v1 = self.arnoldi(k1, s1) 
-                v2 = self.arnoldi(k2, s2)
-                if(type(v1) == int):
-                    error1 = ERROR_MAX
-                else:
+                try:
+                    v1 = self.arnoldi(k1, s1) 
+                    v2 = self.arnoldi(k2, s2)
                     error1 = self.errorEval(v1, maxFreq, ERROR_SAMPLE_COUNT)
-                if(type(v2) == int):
-                    error2 = ERROR_MAX
-                else:
                     error2 = self.errorEval(v2, maxFreq, ERROR_SAMPLE_COUNT)
+                except(np.linalg.LinAlgError):
+                    j = j + step
+                    continue
                 if error1 + error2 <= error:
                     error = error1 + error2
                     result = feature + [i, j, error]
@@ -198,28 +196,41 @@ class CaseData(object):
         return result
 
 
-class CaseDataBase(object):
+class CaseDatabase(object):
     '''
     Database for cases. Training and predicting cases are included.
     Apply access and parser to outer files.
     Attributes: _trainingCaseList, _predictingCaseList, trainingFeatureTable, predictingFeatureTable
-    Function: parser, reload, measureTrainingData, extractPredtingFeature, trainingList, predictingList, 
+    Function: parser, buildCaseData, measureTrainingData, extractPredtingFeature, trainingList, predictingList, 
     saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
     def __init__(self):
         '''
         Read files from case directory.
-        Build _trainingCaseList and _predictingCaseList using parser function.
+        Build _trainingCaseList and _predictingCaseList using buildCaseData function.
         '''
         pass
 
     def parser(self, fileName):
         '''
         Read and build sparse matrix from file.
-        C, G and B matrix files in OOC format are supported.
+        Matrix files in COO format are supported.
+        Do not construct matrix since size are unknown.
         '''
-        pass
+        # read the file and extract the data
+        data = np.loadtxt(fileName)
+        if data.ndim == 1:  # handle the case when there is only one line in the file
+            rows = [int(data[0])]
+            cols = [int(data[1])]
+            values = [data[2]]
+        else:
+            rows = data[:, 0].astype(int)
+            cols = data[:, 1].astype(int)
+            values = data[:, 2]
+        # return the result
+        return [rows, cols, values]
+
 
     def trainingFeatureTable(self):
         '''
@@ -233,9 +244,9 @@ class CaseDataBase(object):
         '''
         return self._predictingFeatureTable()
 
-    def reload(self, dataSet = "both", trainingDir = TRAINING_CASE_DIR, predictingDir = PREDICTING_CASE_DIR):
+    def buildCaseData(self, dataSet = "both", trainingDir = TRAINING_CASE_DIR, predictingDir = PREDICTING_CASE_DIR):
         '''
-        Reload data from case directory.
+        Load data from case directory.
         Rebuild _trainingCaseList and/or _predictingCaseList.
         This method do not rebuild _trainingFeatureTable and _predictingFeatureTable.
         dataSet: "training" ---- Rebuild _trainingCaseList from trainingDir
@@ -261,25 +272,25 @@ class CaseDataBase(object):
         This method will delete the existing _predictingFeatureTable.
         '''
 
-    def saveTrainingFeature(self, fileName):
+    def saveTrainingFeature(self, fileName = "./training_feature.txt"):
         '''
         Save _trainingFeatureTable to specific file.
         '''
         pass
 
-    def savePredictingFeature(self, fileName):
+    def savePredictingFeature(self, fileName = "./predicting_feature.txt"):
         '''
         Save _PredictingFeatureTable to specific file.
         '''
         pass
 
-    def loadTrainingFeature(self, fileName):
+    def loadTrainingFeature(self, fileName = "./training_feature.txt"):
         '''
         Load _trainingFeatureTable from specific file.
         '''
         pass
 
-    def loadPredictingFeature(self, fileName):
+    def loadPredictingFeature(self, fileName = "./predicting_feature.txt"):
         '''
         Load _PredictingFeatureTable from specific file.
         '''
@@ -292,31 +303,47 @@ class CaseDataBase(object):
 # Unit Test
 
 if __name__ == "__main__":
-    b = coo_matrix(([-1], ([0], [0])), shape=(10,1))
-    c = coo_matrix(([1.000000e-18, 2.388640e-17, 2.388640e-17, 1.319750e-16, 1.145700e-17, 1.145700e-17],\
-                    ([1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6])),\
-                    shape=(10,10))
-    g = np.matrix([[6.171022, 0, 0, 0, -5.080113e+00, 0, 0, 0, 0, -9.090909e-02],\
-                  [0, 5.171022, -9.090909e-02, 0, 0, 0, 0, -5.080113e+00, 0, 0],\
-                  [0, -9.090909e-02, 8.849164, 0, 0, 0, 0, 0, -8.758255e+00, 0],\
-                  [0, 0, 0, 8.767346e+00, 0, 0, -9.090909e-03, 0, 0, -8.758255e+00],\
-                  [-5.080113, 0, 0, 0, 5.186578e+00, 0, 0, -1.064646e-01, 0, 0],\
-                  [0, 0, 0, 0, 0, 9.090909e-03, 0, 0, -9.090909e-03, 0],\
-                  [0, 0, 0, -9.090909e-03, 0, 0, 9.090909e-03, 0, 0, 0],\
-                  [0, -5.080113, 0, 0, -1.064646e-01, 0, 0, 5.186578e+00, 0, 0],\
-                  [0, 0, -8.758255, 0, 0, -9.090909e-03, 0, 0, 8.767346e+00, 0],\
-                  [-9.090909e-02, 0, 0, -8.758255e+00, 0, 0, 0, 0, 0, 8.849164e+00]],)
-    
+
+    db = CaseDatabase()
     t = CaseData("414", 10, 1)
-    t.setB(b)
-    t.setC(c)
-    t.setG(g)
+    [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_B.txt")
+    t.setB(coo_matrix((values, (rows, cols)), shape=(10, 1)))
+    [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_C.txt")
+    t.setC(coo_matrix((values, (rows, cols)), shape=(10, 10)))
+    [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_G.txt")
+    t.setG(coo_matrix((values, (rows, cols)), shape=(10, 10)))
 
-    v = t.arnoldi(5, 10e9)
+    # print(t.b)
+    # print(t.c)
+    # print(t.g)
 
-    print(t.errorEval(v, 2e10, 1000))
+    # b = coo_matrix(([-1], ([0], [0])), shape=(10,1))
+    # c = coo_matrix(([1.000000e-18, 2.388640e-17, 2.388640e-17, 1.319750e-16, 1.145700e-17, 1.145700e-17],\
+    #                 ([1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6])),\
+    #                 shape=(10,10))
+    # g = np.matrix([[6.171022, 0, 0, 0, -5.080113e+00, 0, 0, 0, 0, -9.090909e-02],\
+    #               [0, 5.171022, -9.090909e-02, 0, 0, 0, 0, -5.080113e+00, 0, 0],\
+    #               [0, -9.090909e-02, 8.849164, 0, 0, 0, 0, 0, -8.758255e+00, 0],\
+    #               [0, 0, 0, 8.767346e+00, 0, 0, -9.090909e-03, 0, 0, -8.758255e+00],\
+    #               [-5.080113, 0, 0, 0, 5.186578e+00, 0, 0, -1.064646e-01, 0, 0],\
+    #               [0, 0, 0, 0, 0, 9.090909e-03, 0, 0, -9.090909e-03, 0],\
+    #               [0, 0, 0, -9.090909e-03, 0, 0, 9.090909e-03, 0, 0, 0],\
+    #               [0, -5.080113, 0, 0, -1.064646e-01, 0, 0, 5.186578e+00, 0, 0],\
+    #               [0, 0, -8.758255, 0, 0, -9.090909e-03, 0, 0, 8.767346e+00, 0],\
+    #               [-9.090909e-02, 0, 0, -8.758255e+00, 0, 0, 0, 0, 0, 8.849164e+00]],)
+    
+    v1 = t.arnoldi(4, 0)
+    v2 = t.arnoldi(11, 5e9)
 
-    print(t.measureMinError(15, 2e10, 1e9))
+    # print(v)
+
+    # print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
+    # print(t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
+    print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT) + t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
+
+    # print(t.measureMinError(15, FREQ_LIMIT, 1e9))
+
+    
 
 
 
