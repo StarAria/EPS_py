@@ -10,6 +10,7 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------------------------
 
+import os
 import numpy as np
 from scipy.sparse import *
 from scipy import constants
@@ -18,7 +19,7 @@ from scipy.sparse.linalg import splu
 
 # constant
 ERROR_MAX = 1e10
-ERROR_SAMPLE_COUNT = 500
+ERROR_SAMPLE_COUNT = 10
 FREQ_LIMIT = 2e10
 TRAINING_CASE_DIR = "../case/Training"
 PREDICTING_CASE_DIR = "../case/Predicting"
@@ -131,7 +132,7 @@ class CaseData(object):
         gNnz = self.g.nnz
         cgElemProduct = self.c.multiply(self.g).mean()
         dim = self.order
-        return [cMax, gMax, cMin, gMin, cMean, gMean, cColVar, gColVar,\
+        return [self.name, cMax, gMax, cMin, gMin, cMean, gMean, cColVar, gColVar,\
                 cNnz, gNnz, cgElemProduct, dim]
     
     def errorEval(self, v, fLim, sampleCnt):
@@ -205,12 +206,14 @@ class CaseDatabase(object):
     saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
-    def __init__(self):
+    def __init__(self, buildCaseList = True):
         '''
         Read files from case directory.
         Build _trainingCaseList and _predictingCaseList using buildCaseData function.
         '''
-        pass
+        if buildCaseList:
+            self.buildCaseData()
+        return
 
     def parser(self, fileName):
         '''
@@ -236,27 +239,75 @@ class CaseDatabase(object):
         '''
         Access to _trainingFeatureTable.
         '''
-        return self._trainingFeatureTable()
+        return self._trainingFeatureTable
     
     def predictingFeatureTable(self):
         '''
         Access to _predictingFeatureTable.
         '''
-        return self._predictingFeatureTable()
+        return self._predictingFeatureTable
 
     def buildCaseData(self, dataSet = "both", trainingDir = TRAINING_CASE_DIR, predictingDir = PREDICTING_CASE_DIR):
         '''
         Load data from case directory.
         Rebuild _trainingCaseList and/or _predictingCaseList.
         This method do not rebuild _trainingFeatureTable and _predictingFeatureTable.
-        dataSet: "training" ---- Rebuild _trainingCaseList from trainingDir
-                 "predicting" ---- Rebuild _predictingCaseList from predictingDir
-                 "both" ---- rebuild both dir
-                 otherwise ---- do not rebuild
+        dataSet: "training" ---- Rebuild _trainingCaseList from trainingDir.
+                 "predicting" ---- Rebuild _predictingCaseList from predictingDir.
+                 "both" ---- rebuild both dir.
+                 otherwise ---- do not rebuild.
         trainingDir: training case directory. TRAINING_CASE_DIR as default.
         predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
         '''
-        pass
+        if(dataSet == "both" or dataSet == "training"):
+            print("********Begin to build trainingCaseList********")
+            self._trainingCaseList = []
+            caseNameList = os.listdir(trainingDir)
+            for fileName in caseNameList:
+                infoFileName = trainingDir + "/" + fileName + "/" + fileName + ".txt"
+                bFileName = trainingDir + "/" + fileName + "/" + fileName + "_B.txt"
+                cFileName = trainingDir + "/" + fileName + "/" + fileName + "_C.txt"
+                gFileName = trainingDir + "/" + fileName + "/" + fileName + "_G.txt"
+                with open(infoFileName, 'r') as infoF:
+                    info = infoF.readlines()
+                    case = CaseData(str(info[0].split()[0]), int(info[1].split()[0]), int(info[2].split()[0]))
+                [rows, cols, values] = self.parser(bFileName)
+                case.setB(coo_matrix((values, (rows, cols)), shape=(case.order, case.bCol)))
+                [rows, cols, values] = self.parser(cFileName)
+                case.setC(coo_matrix((values, (rows, cols)), shape=(case.order, case.order)))
+                [rows, cols, values] = self.parser(gFileName)
+                case.setG(coo_matrix((values, (rows, cols)), shape=(case.order, case.order)))
+                self._trainingCaseList.append(case)
+            print("Build trainingCaseList done, " + str(len(self._trainingCaseList))\
+                   + " cases added to list")
+
+        elif(dataSet == "both" or dataSet == "predicting"):
+            print("********Begin to build predictingCaseList********")
+            self._predictingCaseList = []
+            caseNameList = os.listdir(predictingDir)
+            for fileName in caseNameList:
+                infoFileName = predictingDir + "/" + fileName + "/" + fileName + ".txt"
+                bFileName = predictingDir + "/" + fileName + "/" + fileName + "_B.txt"
+                cFileName = predictingDir + "/" + fileName + "/" + fileName + "_C.txt"
+                gFileName = predictingDir + "/" + fileName + "/" + fileName + "_G.txt"
+                with open(infoFileName, 'r') as infoF:
+                    info = infoF.readlines()
+                    case = CaseData(str(info[0].split()[0]), int(info[1].split()[0]), int(info[2].split()[0]))
+                [rows, cols, values] = self.parser(bFileName)
+                case.setB(coo_matrix((values, (rows, cols)), shape=(case.order, case.bCol)))
+                [rows, cols, values] = self.parser(cFileName)
+                case.setC(coo_matrix((values, (rows, cols)), shape=(case.order, case.order)))
+                [rows, cols, values] = self.parser(gFileName)
+                case.setG(coo_matrix((values, (rows, cols)), shape=(case.order, case.order)))
+                self._predictingCaseList.append(case)
+            print("Build predictingCaseList done, " + str(len(self._predictingCaseList))\
+                   + " cases added to list")
+            
+        else:
+            print("********Unknown parametre dataSet = \"" + str(dataSet) + "\" , case list did not rebuild.********")
+
+        return
+
 
     def measureTrainingData(self):
         '''
@@ -304,14 +355,14 @@ class CaseDatabase(object):
 
 if __name__ == "__main__":
 
-    db = CaseDatabase()
-    t = CaseData("414", 10, 1)
-    [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_B.txt")
-    t.setB(coo_matrix((values, (rows, cols)), shape=(10, 1)))
-    [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_C.txt")
-    t.setC(coo_matrix((values, (rows, cols)), shape=(10, 10)))
-    [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_G.txt")
-    t.setG(coo_matrix((values, (rows, cols)), shape=(10, 10)))
+    db = CaseDatabase(False)
+    # t = CaseData("414", 10, 1)
+    # [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_B.txt")
+    # t.setB(coo_matrix((values, (rows, cols)), shape=(10, 1)))
+    # [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_C.txt")
+    # t.setC(coo_matrix((values, (rows, cols)), shape=(10, 10)))
+    # [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_G.txt")
+    # t.setG(coo_matrix((values, (rows, cols)), shape=(10, 10)))
 
     # print(t.b)
     # print(t.c)
@@ -332,16 +383,20 @@ if __name__ == "__main__":
     #               [0, 0, -8.758255, 0, 0, -9.090909e-03, 0, 0, 8.767346e+00, 0],\
     #               [-9.090909e-02, 0, 0, -8.758255e+00, 0, 0, 0, 0, 0, 8.849164e+00]],)
     
-    v1 = t.arnoldi(4, 0)
-    v2 = t.arnoldi(11, 5e9)
+    # v1 = t.arnoldi(4, 0)
+    # v2 = t.arnoldi(11, 5e9)
 
-    # print(v)
+    # print(v1)
 
     # print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
     # print(t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
-    print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT) + t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
+    # print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT) + t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
 
     # print(t.measureMinError(15, FREQ_LIMIT, 1e9))
+
+    db.buildCaseData(dataSet="all", trainingDir="../test")
+    # print(len(db.trainingFeatureTable()))
+    # print(len(db.predictingFeatureTable()))
 
     
 
