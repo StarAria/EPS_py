@@ -11,6 +11,7 @@
 # ---------------------------------------------------------------------------------------------------------------------------------------
 
 import os
+import multiprocessing
 import numpy as np
 from scipy.sparse import *
 from scipy import constants
@@ -18,9 +19,12 @@ from scipy.linalg import solve
 from scipy.sparse.linalg import splu
 
 # constant
+PROCESS_CNT = 10
 ERROR_MAX = 1e10
 ERROR_SAMPLE_COUNT = 10
 FREQ_LIMIT = 2e10
+SAMPLE_STEP = 1e9
+TOTAL_ORDER = 15
 TRAINING_CASE_DIR = "../case/Training"
 PREDICTING_CASE_DIR = "../case/Predicting"
 
@@ -162,7 +166,7 @@ class CaseData(object):
         meanError = abs(x - rx).mean()
         return meanError
             
-    def measureMinError(self, totalOrder, maxFreq, step):
+    def measureMinError(self, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT, step = SAMPLE_STEP, sampleCnt = ERROR_SAMPLE_COUNT):
         '''
         Find the (frequence, order) of the 2nd expasion point
         to minimum the total error of the 1st and 2nd expansion point.
@@ -184,8 +188,8 @@ class CaseData(object):
                 try:
                     v1 = self.arnoldi(k1, s1) 
                     v2 = self.arnoldi(k2, s2)
-                    error1 = self.errorEval(v1, maxFreq, ERROR_SAMPLE_COUNT)
-                    error2 = self.errorEval(v2, maxFreq, ERROR_SAMPLE_COUNT)
+                    error1 = self.errorEval(v1, maxFreq, sampleCnt)
+                    error2 = self.errorEval(v2, maxFreq, sampleCnt)
                 except(np.linalg.LinAlgError):
                     j = j + step
                     continue
@@ -206,13 +210,23 @@ class CaseDatabase(object):
     saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
-    def __init__(self, buildCaseList = True):
+    def __init__(self, build = True):
         '''
+        if build = True:
         Read files from case directory.
         Build _trainingCaseList and _predictingCaseList using buildCaseData function.
         '''
-        if buildCaseList:
+        if build:
             self.buildCaseData()
+            self.measureTrainingData()
+            self.extractPredtingFeature()
+
+        else:
+            self._predictingCaseList = []
+            self._trainingCaseList = []
+            self._predictingFeatureTable = []
+            self._trainingFeatureTable = []
+
         return
 
     def parser(self, fileName):
@@ -260,7 +274,7 @@ class CaseDatabase(object):
         predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
         '''
         if(dataSet == "both" or dataSet == "training"):
-            print("********Begin to build trainingCaseList********")
+            print("********Begin to build trainingCaseList********\n")
             self._trainingCaseList = []
             caseNameList = os.listdir(trainingDir)
             for fileName in caseNameList:
@@ -279,10 +293,10 @@ class CaseDatabase(object):
                 case.setG(coo_matrix((values, (rows, cols)), shape=(case.order, case.order)))
                 self._trainingCaseList.append(case)
             print("Build trainingCaseList done, " + str(len(self._trainingCaseList))\
-                   + " cases added to list")
+                   + " cases added to list\n")
 
-        elif(dataSet == "both" or dataSet == "predicting"):
-            print("********Begin to build predictingCaseList********")
+        if(dataSet == "both" or dataSet == "predicting"):
+            print("********Begin to build predictingCaseList********\n")
             self._predictingCaseList = []
             caseNameList = os.listdir(predictingDir)
             for fileName in caseNameList:
@@ -301,51 +315,103 @@ class CaseDatabase(object):
                 case.setG(coo_matrix((values, (rows, cols)), shape=(case.order, case.order)))
                 self._predictingCaseList.append(case)
             print("Build predictingCaseList done, " + str(len(self._predictingCaseList))\
-                   + " cases added to list")
+                   + " cases added to list\n")
             
         else:
-            print("********Unknown parametre dataSet = \"" + str(dataSet) + "\" , case list did not rebuild.********")
+            print("********Unknown parametre dataSet = \"" + str(dataSet) + "\" , case list did not rebuild********\n")
 
         return
 
+    def _measureMinError(self, case):
+        '''
+        Case min error measurement for parallel execution.
+        '''
+        return case.measureMinError()
 
-    def measureTrainingData(self):
+    def measureTrainingData(self, processCnt = PROCESS_CNT):
         '''
         Build _trainingFeatureTable from _trainingCaseList.
         This method will delete the existing _trainingFeatureTable.
         May be time-consuming.
         '''
-        pass
+        print("********Begin to measure training data********\n")
+
+        self._trainingFeatureTable = []
+        # Create a pool of worker processes
+        with multiprocessing.Pool(processes=processCnt) as pool:
+        # Apply the feature extract function to each training case in parallel
+            self._trainingFeatureTable = pool.map(self._measureMinError, self._trainingCaseList)
+
+        print("Measure training data done\n")
+        return
 
     def extractPredtingFeature(self):
         '''
         Build _predictingFeatureTable from _predictingCaseList.
         This method will delete the existing _predictingFeatureTable.
         '''
+        print("********Begin to extract predicting data feature********\n")
+
+        self._predictingFeatureTable = []
+        for case in self._predictingCaseList:
+            self._predictingFeatureTable.append(case.featureExtract())
+
+        print("Extract predicting data feature done\n")
+        return
 
     def saveTrainingFeature(self, fileName = "./training_feature.txt"):
         '''
         Save _trainingFeatureTable to specific file.
         '''
-        pass
+        print("********Save trainingFeatureTable to file "+ fileName + "********\n")
+        with open(fileName, 'w') as f:
+            for case in self._trainingFeatureTable:
+                line = '\t'.join(map(str, case)) + '\n'
+                f.write(line)
+
+        return
 
     def savePredictingFeature(self, fileName = "./predicting_feature.txt"):
         '''
-        Save _PredictingFeatureTable to specific file.
+        Save _predictingFeatureTable to specific file.
         '''
-        pass
+        print("********Save predictingFeatureTable to file "+ fileName + " ********\n")
+        with open(fileName, 'w') as f:
+            for case in self._predictingFeatureTable:
+                line = '\t'.join(map(str, case)) + '\n'
+                f.write(line)
+
+        return
 
     def loadTrainingFeature(self, fileName = "./training_feature.txt"):
         '''
         Load _trainingFeatureTable from specific file.
         '''
-        pass
+        print("********Load trainingFeatureTable from file "+ fileName + " ********\n")
+        self._trainingFeatureTable = []
+        with open(fileName, 'r') as f:
+            for line in f:
+                case = line.strip().split('\t')
+                case = [case[0]] + list(map(float, case[1:9])) + list(map(int, case[9:11])) +\
+                      [float(case[11])] + [int(case[12])] +\
+                      [int(case[13])] + [float(case[14])] + [float(case[15])]
+                self._trainingFeatureTable.append(case)
+
 
     def loadPredictingFeature(self, fileName = "./predicting_feature.txt"):
         '''
         Load _PredictingFeatureTable from specific file.
         '''
-        pass
+        print("********Load predictingFeatureTable from file "+ fileName + " ********\n")
+        self._predictingFeatureTable = []
+        with open(fileName, 'r') as f:
+            for line in f:
+                case = line.strip().split('\t')
+                case = [case[0]] + list(map(float, case[1:9])) + list(map(int, case[9:11])) +\
+                      [float(case[11])] + [int(case[12])]
+                self._predictingFeatureTable.append(case)
+
+        return
 
 
 
@@ -394,9 +460,28 @@ if __name__ == "__main__":
 
     # print(t.measureMinError(15, FREQ_LIMIT, 1e9))
 
-    db.buildCaseData(dataSet="all", trainingDir="../test")
+    print(len(db.trainingFeatureTable()))
+    print(len(db.predictingFeatureTable()))
+
+    db.loadPredictingFeature()
+    db.loadTrainingFeature()
+    # db.buildCaseData()
     # print(len(db.trainingFeatureTable()))
     # print(len(db.predictingFeatureTable()))
+    # db.measureTrainingData()
+    print(len(db.trainingFeatureTable()))
+    print(db.trainingFeatureTable()[0])
+    print(db.trainingFeatureTable()[399])
+
+    # db.extractPredtingFeature()
+    print(len(db.predictingFeatureTable()))
+    print(db.predictingFeatureTable()[0])
+    print(db.predictingFeatureTable()[99])
+
+    # db.savePredictingFeature()
+    # db.saveTrainingFeature()
+
+
 
     
 
