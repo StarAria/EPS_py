@@ -6,7 +6,7 @@
 # --File: case_database.py
 # --Note: define the database of varies circuit cases.
 # --Designers: Wang Chuyu
-# --Writers: Wang CHuyu
+# --Writers: Wang Chuyu
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------------------------
 
@@ -268,8 +268,8 @@ class CaseDatabase(object):
         This method do not rebuild _trainingFeatureTable and _predictingFeatureTable.
         dataSet: "training" ---- Rebuild _trainingCaseList from trainingDir.
                  "predicting" ---- Rebuild _predictingCaseList from predictingDir.
-                 "both" ---- rebuild both dir.
-                 otherwise ---- do not rebuild.
+                 "both" ---- Rebuild both dir.
+                 otherwise ---- Do not rebuild.
         trainingDir: training case directory. TRAINING_CASE_DIR as default.
         predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
         '''
