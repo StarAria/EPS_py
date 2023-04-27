@@ -273,6 +273,9 @@ class CaseDatabase(object):
         trainingDir: training case directory. TRAINING_CASE_DIR as default.
         predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
         '''
+        if(dataSet not in ["training", "predicting", "both"]):
+            raise ValueError("Unknown parameter \"dataset=" + dataSet + "\"")
+
         if(dataSet == "both" or dataSet == "training"):
             print("********Begin to build trainingCaseList********\n")
             self._trainingCaseList = []
@@ -317,9 +320,6 @@ class CaseDatabase(object):
             print("Build predictingCaseList done, " + str(len(self._predictingCaseList))\
                    + " cases added to list\n")
             
-        else:
-            print("********Unknown parametre dataSet = \"" + str(dataSet) + "\" , case list did not rebuild********\n")
-
         return
 
     def _measureMinError(self, case):
@@ -342,7 +342,7 @@ class CaseDatabase(object):
         # Apply the feature extract function to each training case in parallel
             self._trainingFeatureTable = pool.map(self._measureMinError, self._trainingCaseList)
 
-        print("Measure training data done\n")
+        print("...Done\n")
         return
 
     def extractPredtingFeature(self):
@@ -356,61 +356,70 @@ class CaseDatabase(object):
         for case in self._predictingCaseList:
             self._predictingFeatureTable.append(case.featureExtract())
 
-        print("Extract predicting data feature done\n")
+        print("...Done\n")
         return
 
     def saveTrainingFeature(self, fileName = "./training_feature.txt"):
         '''
         Save _trainingFeatureTable to specific file.
         '''
-        print("********Save trainingFeatureTable to file "+ fileName + "********\n")
+        print("********Save training feature table********\n")
+        print("Target: " + fileName)
         with open(fileName, 'w') as f:
             for case in self._trainingFeatureTable:
                 line = '\t'.join(map(str, case)) + '\n'
                 f.write(line)
-
+        print("...Done\n")
         return
 
     def savePredictingFeature(self, fileName = "./predicting_feature.txt"):
         '''
         Save _predictingFeatureTable to specific file.
         '''
-        print("********Save predictingFeatureTable to file "+ fileName + " ********\n")
+        print("********Save predicting feature table********\n")
+        print("Target: " + fileName)
         with open(fileName, 'w') as f:
             for case in self._predictingFeatureTable:
                 line = '\t'.join(map(str, case)) + '\n'
                 f.write(line)
-
+        print("...Done\n")
         return
 
     def loadTrainingFeature(self, fileName = "./training_feature.txt"):
         '''
         Load _trainingFeatureTable from specific file.
         '''
-        print("********Load trainingFeatureTable from file "+ fileName + " ********\n")
-        self._trainingFeatureTable = []
+        print("********Load training feature table********\n")
+        print("Target: " + fileName)
+        table = []
         with open(fileName, 'r') as f:
             for line in f:
                 case = line.strip().split('\t')
                 case = [case[0]] + list(map(float, case[1:9])) + list(map(int, case[9:11])) +\
                       [float(case[11])] + [int(case[12])] +\
                       [int(case[13])] + [float(case[14])] + [float(case[15])]
-                self._trainingFeatureTable.append(case)
+                table.append(case)
+            self._trainingFeatureTable = np.matrix(table)
+        print("...Done\n")
+        return
 
 
     def loadPredictingFeature(self, fileName = "./predicting_feature.txt"):
         '''
         Load _PredictingFeatureTable from specific file.
         '''
-        print("********Load predictingFeatureTable from file "+ fileName + " ********\n")
-        self._predictingFeatureTable = []
+        print("********Load predicting feature table********\n")
+        print("Target: " + fileName)
+        table = []
         with open(fileName, 'r') as f:
             for line in f:
                 case = line.strip().split('\t')
                 case = [case[0]] + list(map(float, case[1:9])) + list(map(int, case[9:11])) +\
                       [float(case[11])] + [int(case[12])]
-                self._predictingFeatureTable.append(case)
+                table.append(case)
 
+            self._predictingFeatureTable = np.matrix(table)
+        print("...Done\n")
         return
 
 
