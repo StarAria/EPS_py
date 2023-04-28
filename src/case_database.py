@@ -335,6 +335,7 @@ class CaseDatabase(object):
         May be time-consuming.
         '''
         print("********Begin to measure training data********\n")
+        print("This may take tens of minutes...\n")
 
         self._trainingFeatureTable = []
         # Create a pool of worker processes

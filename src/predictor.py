@@ -102,10 +102,10 @@ class Predictor(object):
             print("...Done\n")
 
         if(showResult):
-            self.showPredictingResult(item=item, merge=False)
+            self.showPredictingResult(item=item, merge=True)
 
         if(dumpFile):
-            self.savePredictingResult(item=item, merge=False)
+            self.savePredictingResult(item=item, merge=True)
 
         return
 
@@ -125,7 +125,7 @@ class Predictor(object):
 
         print("********Predicting Result********\n")
         if ((item == "frequency") or (item == "both" and not merge)):
-            print("\nFrequency predicting result:")
+            print("Frequency predicting result:")
             print("\tCase\t\tFrequency")
             for case in self.freqPredictingResult:
                 print("\t" + case[0] + "\t\t" + str(case[1]))
