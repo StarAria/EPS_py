@@ -19,9 +19,9 @@ from scipy.linalg import solve
 from scipy.sparse.linalg import splu
 
 # constant
-PROCESS_CNT = 10
+PROCESS_CNT = 8
 ERROR_MAX = 1e10
-ERROR_SAMPLE_COUNT = 10
+ERROR_SAMPLE_COUNT = 500
 FREQ_LIMIT = 2e10
 SAMPLE_STEP = 1e9
 TOTAL_ORDER = 15
@@ -166,7 +166,8 @@ class CaseData(object):
         meanError = abs(x - rx).mean()
         return meanError
             
-    def measureMinError(self, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT, step = SAMPLE_STEP, sampleCnt = ERROR_SAMPLE_COUNT):
+    def measureMinError(self, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT, step = SAMPLE_STEP,\
+                        sampleCnt = ERROR_SAMPLE_COUNT):
         '''
         Find the (frequence, order) of the 2nd expasion point
         to minimum the total error of the 1st and 2nd expansion point.
@@ -198,6 +199,7 @@ class CaseData(object):
                     result = feature + [i, j, error]
                 j = j + step
 
+        print("case " + self.name + " done.")
         return result
 
 
@@ -210,12 +212,14 @@ class CaseDatabase(object):
     saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
-    def __init__(self, build = True):
+    def __init__(self, trainingCaseDir = TRAINING_CASE_DIR, predictingCaseDir = PREDICTING_CASE_DIR, build = True):
         '''
         if build = True:
         Read files from case directory.
         Build _trainingCaseList and _predictingCaseList using buildCaseData function.
         '''
+        self.trainingCaseDir = trainingCaseDir
+        self.predictingCaseDir = predictingCaseDir
         if build:
             self.buildCaseData()
             self.measureTrainingData()
@@ -261,7 +265,7 @@ class CaseDatabase(object):
         '''
         return self._predictingFeatureTable
 
-    def buildCaseData(self, dataSet = "both", trainingDir = TRAINING_CASE_DIR, predictingDir = PREDICTING_CASE_DIR):
+    def buildCaseData(self, dataSet = "both", trainingDir = None, predictingDir = None):
         '''
         Load data from case directory.
         Rebuild _trainingCaseList and/or _predictingCaseList.
@@ -270,11 +274,17 @@ class CaseDatabase(object):
                  "predicting" ---- Rebuild _predictingCaseList from predictingDir.
                  "both" ---- Rebuild both dir.
                  otherwise ---- Do not rebuild.
-        trainingDir: training case directory. TRAINING_CASE_DIR as default.
+        trainingDir: training case directory. self. as default.
         predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
         '''
         if(dataSet not in ["training", "predicting", "both"]):
             raise ValueError("Unknown parameter \"dataset=" + dataSet + "\"")
+        
+        if(trainingDir == None):
+            trainingDir = self.trainingCaseDir
+
+        if(predictingDir == None):
+            predictingDir = self.predictingCaseDir
 
         if(dataSet == "both" or dataSet == "training"):
             print("********Begin to build trainingCaseList********\n")
@@ -400,7 +410,7 @@ class CaseDatabase(object):
                       [float(case[11])] + [int(case[12])] +\
                       [int(case[13])] + [float(case[14])] + [float(case[15])]
                 table.append(case)
-            self._trainingFeatureTable = np.matrix(table)
+            self._trainingFeatureTable = table
         print("...Done\n")
         return
 
@@ -419,9 +429,125 @@ class CaseDatabase(object):
                       [float(case[11])] + [int(case[12])]
                 table.append(case)
 
-            self._predictingFeatureTable = np.matrix(table)
+            self._predictingFeatureTable = table
         print("...Done\n")
         return
+    
+    def measureAllCases(self, frequency, order, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT,\
+                     step = SAMPLE_STEP, sampleCnt = ERROR_SAMPLE_COUNT, dataSet = "both"):
+        '''
+        Measure all cases' error with 2nd expansion point(frequency, order)
+        frequency: 2nd expansion point frequency
+        order: 2nd expansion point order
+        dataSet: "training" ---- Measure cases in _trainingCaseList.
+                 "predicting" ---- Measure cases in _predictingCaseList.
+                 "both" ---- Measure both dir cases.
+                 otherwise ---- Do not rebuild.
+        '''
+        print("********Begin to measure cases with specific 2nd expansion point********\n")
+
+        if(dataSet not in ["training", "predicting", "both"]):
+            raise ValueError("Unknown parameter \"dataset=" + dataSet + "\"")
+        
+        measureData = []
+        if(dataSet == "both" or dataSet == "training"):
+            for case in self._trainingCaseList:
+                k1 = totalOrder - order
+                k2 = order
+                s1 = 0
+                s2 = frequency
+                #try:
+                #    v1 = case.arnoldi(k1, s1) 
+                #    v2 = case.arnoldi(k2, s2)
+                #    error1 = case.errorEval(v1, maxFreq, sampleCnt)
+                #    error2 = case.errorEval(v2, maxFreq, sampleCnt)
+                #except(np.linalg.LinAlgError):
+                #    error = ERROR_MAX
+                v1 = case.arnoldi(k1, s1) 
+                v2 = case.arnoldi(k2, s2)
+                error1 = case.errorEval(v1, maxFreq, sampleCnt)
+                error2 = case.errorEval(v2, maxFreq, sampleCnt)
+                measureData.append([case.name, error1+error2])
+                print("case " + case.name + " done.")
+
+        if(dataSet == "both" or dataSet == "predicting"):
+            for case in self._predictingCaseList:
+                k1 = totalOrder - order
+                k2 = order
+                s1 = 0
+                s2 = frequency
+                #try:
+                #    v1 = case.arnoldi(k1, s1) 
+                #    v2 = case.arnoldi(k2, s2)
+                #    error1 = case.errorEval(v1, maxFreq, sampleCnt)
+                #    error2 = case.errorEval(v2, maxFreq, sampleCnt)
+                #except(np.linalg.LinAlgError):
+                #    error = ERROR_MAX
+                v1 = case.arnoldi(k1, s1) 
+                v2 = case.arnoldi(k2, s2)
+                error1 = case.errorEval(v1, maxFreq, sampleCnt)
+                error2 = case.errorEval(v2, maxFreq, sampleCnt)
+                measureData.append([case.name, error1+error2])
+                print("case " + case.name + " done.")
+        
+        print("...All done\n")
+        return measureData
+    
+    def measureCases(self, expansionPoints, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT,\
+                     step = SAMPLE_STEP, sampleCnt = ERROR_SAMPLE_COUNT):
+        '''
+        Measure the cases with given expansion points.
+        expansionPoints: 2nd expansion point list. Model name, frequency and order are included.
+        '''
+        print("********Measure error with given case********")
+
+        trainingNameLst = [row[0] for row in self._trainingFeatureTable]
+        predictingNameLst = [row[0] for row in self._predictingFeatureTable]
+        result = []
+        for point in expansionPoints:
+            [name, freq, order] = point
+            ti = -1
+            pi = -1
+            try:
+                ti = trainingNameLst.index(name)
+            except:
+                pass
+            try:
+                pi = predictingNameLst.index(name)
+            except:
+                pass
+
+            if not (ti == -1):
+                case = self._trainingCaseList[ti]
+            elif not (pi == -1):
+                case = self._predictingCaseList[pi]
+            else:
+                raise ValueError("Case " + name + " not found in database.")
+
+            k1 = totalOrder - order
+            k2 = order
+            s1 = 0
+            s2 = freq
+            #try:
+            #    v1 = case.arnoldi(k1, s1) 
+            #    v2 = case.arnoldi(k2, s2)
+            #    error1 = case.errorEval(v1, maxFreq, sampleCnt)
+            #    error2 = case.errorEval(v2, maxFreq, sampleCnt)
+            #except(np.linalg.LinAlgError):
+            #    error = ERROR_MAX
+            v1 = case.arnoldi(k1, s1) 
+            v2 = case.arnoldi(k2, s2)
+            error1 = case.errorEval(v1, maxFreq, sampleCnt)
+            error2 = case.errorEval(v2, maxFreq, sampleCnt)
+            result.append([name, error1 + error2])
+            print("case " + name + " done.")
+
+        print("...Done\n")
+        return result
+
+
+
+
 
 
 

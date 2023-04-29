@@ -35,7 +35,7 @@ class Predictor(object):
     '''
     Expansion point predictor using RandomForest algorythm.
     Need data from CaseDatabase.
-    Attributes: freqModel, orderModel, freqPredictingResult, orderPredictingResult, tuning
+    Attributes: _freqModel, _orderModel, freqPredictingResult, orderPredictingResult, tuning
     Function: buildModel, predict, showOobError, showPredictingResult, savePredictingResult
     '''
 
@@ -72,15 +72,15 @@ class Predictor(object):
 
         if(item == "frequency" or item == "both"):
             print("********Build the frequency predicting model********\n")
-            self.freqModel = RandomForestClassifier(oob_score = True)
-            self.freqModel.fit(trainingLabel, np.ravel(trainingFrequency))
-            print("Out-of bag score: " + str(self.freqModel.oob_score_) + "\n")
+            self._freqModel = RandomForestClassifier(oob_score = True)
+            self._freqModel.fit(trainingLabel, np.ravel(trainingFrequency))
+            print("Out-of bag score: " + str(self._freqModel.oob_score_) + "\n")
 
         if(item == "order" or item == "both"):
             print("********Build the order predicting model********\n")
-            self.orderModel = RandomForestClassifier(oob_score = True)
-            self.orderModel.fit(trainingLabel, np.ravel(trainingOrder))
-            print("Out-of bag score: " + str(self.orderModel.oob_score_) + "\n")
+            self._orderModel = RandomForestClassifier(oob_score = True)
+            self._orderModel.fit(trainingLabel, np.ravel(trainingOrder))
+            print("Out-of bag score: " + str(self._orderModel.oob_score_) + "\n")
 
         return
 
@@ -105,14 +105,14 @@ class Predictor(object):
 
         if(item == "frequency" or item == "both"):
             print("********Predict 2nd expansion point frequency********\n")
-            result = np.matrix(self.freqModel.predict(predictingLabel).astype(np.float)).T
-            self.freqPredictingResult = np.concatenate((featureTable[:, 0], result), axis = 1).tolist()
+            result = self._freqModel.predict(predictingLabel)
+            self.freqPredictingResult = [[featureTable[i, 0], float(result[i])] for i in range(len(result))]
             print("...Done\n")
 
         if(item == "order" or item == "both"):
             print("********Predict 2nd expansion point order********\n")
-            result = np.matrix(self.orderModel.predict(predictingLabel).astype(np.int)).T
-            self.orderPredictingResult = np.concatenate((featureTable[:, 0], result), axis = 1).tolist()
+            result = self._orderModel.predict(predictingLabel)
+            self.orderPredictingResult = [[featureTable[i, 0], int(result[i])] for i in range(len(result))]
             print("...Done\n")
 
         if(showResult):
@@ -267,7 +267,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(10):
+                for j in range(100):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
                     buffer.append(mdl.oob_score_)
@@ -285,7 +285,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(10):
+                for j in range(100):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
@@ -304,7 +304,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(10):
+                for j in range(100):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=myMaxDepth, min_samples_split=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
@@ -323,7 +323,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(10):
+                for j in range(100):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=myMaxDepth, min_samples_split=myMinSamplesSplit,\
                                                  min_samples_leaf=i)
@@ -401,6 +401,8 @@ class Predictor(object):
             
         print("\n...Done\n")
         return
+    
+    
 
 
 
@@ -417,14 +419,14 @@ class Predictor(object):
 if __name__ == "__main__":
     from case_database import CaseData, CaseDatabase
 
-    db = CaseDatabase(False)
-    db.loadPredictingFeature()
+    db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting", build=False)
+    # db.loadPredictingFeature()
     db.loadTrainingFeature()
     predictor = Predictor()
-    # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", list(range(1, 20, 1)))
-    predictor.fineTune("order", db.trainingFeatureTable(),\
-                       ["gini"], [295, 300, 305], [9, 10, 11, 12, 13, 14],\
-                        [2, 3, 4, 5], [1, 10, 11, 12])
+    predictor.tuning(db.trainingFeatureTable(), "frequency", "criterion")
+    # predictor.fineTune("order", db.trainingFeatureTable(),\
+    #                    ["gini"], [295, 300, 305], [9, 10, 11, 12, 13, 14],\
+    #                     [2, 3, 4, 5], [1, 10, 11, 12])
 
 
 
