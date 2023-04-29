@@ -24,11 +24,11 @@ ORDER_CRITERION = 'gini'
 FREQ_ESTIMATORS = 300
 ORDER_ESTIMATORS = 300
 FERQ_MAX_DEPTH = 25  
-ORDER_MAX_DEPTH = 7
+ORDER_MAX_DEPTH = 11
 FREQ_MIN_SAMPLES_SPLIT = 2
-ORDER_MIN_SAMPLES_SPLIT = 2
+ORDER_MIN_SAMPLES_SPLIT = 3
 FREQ_MIN_SAMPLES_LEAF = 1
-OERDER_MIN_SAMPLES_LEAF = 10
+OERDER_MIN_SAMPLES_LEAF = 11
 
 
 class Predictor(object):
@@ -385,7 +385,7 @@ class Predictor(object):
                             paras.append([x, y, i, j, k, m, n])
         
         # Create a pool of worker processes
-        with multiprocessing.Pool(processes=10) as pool:
+        with multiprocessing.Pool(processes=8) as pool:
         # Apply the feature extract function to each training case in parallel
             scores = pool.map(self._tryModel, paras)
 
@@ -394,10 +394,10 @@ class Predictor(object):
         sorted_id = sorted(range(len(scores)), key = lambda k: scores[k], reverse = True)
 
         print("Top 20 scores:")
-        print("\tscore\t\t\tcriterion\tn_estimators\tmax_depth\tmin_samples_split\tmin_samples_leaf")
+        print("\tscore\t\tcriterion\tn_estimators\tmax_depth\tmin_samples_split\tmin_samples_leaf")
         for i in sorted_id[:20]:
-            print("\t" + str(scores[i]) + "\t" + str(paras[i][2]) + "\t\t" + str(paras[i][3]) +\
-                  "\t\t" + str(paras[i][4]) + "\t\t" + str(paras[i][5]) + "\t\t" + str(paras[i][6]))
+            print("\t" + f'{scores[i]:.6f}' + "\t" + str(paras[i][2]) + "\t\t" + str(paras[i][3]) +\
+                  "\t\t" + str(paras[i][4]) + "\t\t" + str(paras[i][5]) + "\t\t\t" + str(paras[i][6]))
             
         print("\n...Done\n")
         return
@@ -422,9 +422,9 @@ if __name__ == "__main__":
     db.loadTrainingFeature()
     predictor = Predictor()
     # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", list(range(1, 20, 1)))
-    predictor.fineTune("frequency", db.trainingFeatureTable(),\
-                       ["gini"], [290, 295, 300, 305, 310], [21, 22, 23, 24, 25, 26, 27, 28, 29, 30],\
-                        [2, 3, 4], [1, 2, 3])
+    predictor.fineTune("order", db.trainingFeatureTable(),\
+                       ["gini"], [295, 300, 305], [9, 10, 11, 12, 13, 14],\
+                        [2, 3, 4, 5], [1, 10, 11, 12])
 
 
 
