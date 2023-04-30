@@ -16,15 +16,15 @@ import numpy as np
 from scipy.sparse import *
 from scipy import constants
 from scipy.linalg import solve
-from scipy.sparse.linalg import splu
+from scikits.umfpack import spsolve
 
 # constant
-PROCESS_CNT = 8
+PROCESS_CNT = 16
 ERROR_MAX = 1e10
 ERROR_SAMPLE_COUNT = 500
-FREQ_LIMIT = 2e10
-SAMPLE_STEP = 1e9
-TOTAL_ORDER = 15
+FREQ_LIMIT = 100e9
+SAMPLE_STEP = 5e9
+TOTAL_ORDER = 10
 TRAINING_CASE_DIR = "../case/Training"
 PREDICTING_CASE_DIR = "../case/Predicting"
 
@@ -98,14 +98,16 @@ class CaseData(object):
 
         v = np.matrix(np.zeros((self.order, k)))
 
-        d = g + s * c
-        s = splu(csc_matrix(d))
-        r = s.solve(b)
-        r = r / np.linalg.norm(r)
+        d = csr_matrix(g + s * c) 
+        # s = splu(csc_matrix(d))
+        r = spsolve(d, b)
+        r = np.matrix(r / np.linalg.norm(r)).T
         v[:, 0] = r
 
         for i in range(1, k):
-            z = s.solve(c * v[:, i - 1])
+            # z = s.solve(c * v[:, i - 1])
+            z = spsolve(d, c * v[:, i - 1])
+            z = np.matrix(z).T
             h = v.T * z
             z = z - v * h
             h = v.T * z
@@ -158,12 +160,13 @@ class CaseData(object):
         for i in range(0, sampleCnt + 1):
             f = i * step
             s = 2j * constants.pi * f
-            originSolver = splu(csc_matrix(self.g + s * self.c))
-            x[:, i] = originSolver.solve(self.b.todense())
+            # originSolver = splu(csc_matrix(self.g + s * self.c))
+            tmp = spsolve(csc_matrix(self.g + s * self.c), self.b.todense())
+            x[:, i] = np.matrix(tmp).T
             t = solve((rg + s * rc), rb)
             rx[:, i] = v * t
 
-        meanError = abs(x - rx).mean()
+        meanError = (abs(x - rx) / abs(x)).mean()
         return meanError
             
     def measureMinError(self, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT, step = SAMPLE_STEP,\
@@ -493,8 +496,52 @@ class CaseDatabase(object):
         print("...All done\n")
         return measureData
     
+    def _findAndMeasure(self, lst):
+        '''
+        find and measure single case.
+        Use for parallel running measureCase.
+        '''
+        [trainingNameLst, predictingNameLst, trainingCaseList, predictingCaseList,\
+         point, totalOrder, maxFreq, step, sampleCnt] = lst
+        [name, freq, order] = point
+        ti = -1
+        pi = -1
+        try:
+            ti = trainingNameLst.index(name)
+        except:
+            pass
+        try:
+            pi = predictingNameLst.index(name)
+        except:
+            pass
+        if not (ti == -1):
+            case = trainingCaseList[ti]
+        elif not (pi == -1):
+            case = predictingCaseList[pi]
+        else:
+            raise ValueError("Case " + name + " not found in database.")
+        k1 = totalOrder - order
+        k2 = order
+        s1 = 0
+        s2 = freq
+        #try:
+        #    v1 = case.arnoldi(k1, s1) 
+        #    v2 = case.arnoldi(k2, s2)
+        #    error1 = case.errorEval(v1, maxFreq, sampleCnt)
+        #    error2 = case.errorEval(v2, maxFreq, sampleCnt)
+        #except(np.linalg.LinAlgError):
+        #    error = ERROR_MAX
+        v1 = case.arnoldi(k1, s1) 
+        v2 = case.arnoldi(k2, s2)
+        error1 = case.errorEval(v1, maxFreq, sampleCnt)
+        error2 = case.errorEval(v2, maxFreq, sampleCnt)
+        print("case " + name + " done.")
+        return([name, error1 + error2])
+        
+
+    
     def measureCases(self, expansionPoints, totalOrder = TOTAL_ORDER, maxFreq = FREQ_LIMIT,\
-                     step = SAMPLE_STEP, sampleCnt = ERROR_SAMPLE_COUNT):
+                     step = SAMPLE_STEP, sampleCnt = ERROR_SAMPLE_COUNT, processCnt = PROCESS_CNT):
         '''
         Measure the cases with given expansion points.
         expansionPoints: 2nd expansion point list. Model name, frequency and order are included.
@@ -503,45 +550,13 @@ class CaseDatabase(object):
 
         trainingNameLst = [row[0] for row in self._trainingFeatureTable]
         predictingNameLst = [row[0] for row in self._predictingFeatureTable]
-        result = []
-        for point in expansionPoints:
-            [name, freq, order] = point
-            ti = -1
-            pi = -1
-            try:
-                ti = trainingNameLst.index(name)
-            except:
-                pass
-            try:
-                pi = predictingNameLst.index(name)
-            except:
-                pass
-
-            if not (ti == -1):
-                case = self._trainingCaseList[ti]
-            elif not (pi == -1):
-                case = self._predictingCaseList[pi]
-            else:
-                raise ValueError("Case " + name + " not found in database.")
-
-            k1 = totalOrder - order
-            k2 = order
-            s1 = 0
-            s2 = freq
-            #try:
-            #    v1 = case.arnoldi(k1, s1) 
-            #    v2 = case.arnoldi(k2, s2)
-            #    error1 = case.errorEval(v1, maxFreq, sampleCnt)
-            #    error2 = case.errorEval(v2, maxFreq, sampleCnt)
-            #except(np.linalg.LinAlgError):
-            #    error = ERROR_MAX
-            v1 = case.arnoldi(k1, s1) 
-            v2 = case.arnoldi(k2, s2)
-            error1 = case.errorEval(v1, maxFreq, sampleCnt)
-            error2 = case.errorEval(v2, maxFreq, sampleCnt)
-            result.append([name, error1 + error2])
-            print("case " + name + " done.")
-
+        input = [[trainingNameLst, predictingNameLst, self._trainingCaseList, self._predictingCaseList,\
+                  expansionPoints[i], totalOrder, maxFreq, step, sampleCnt]\
+                 for i in range(len(expansionPoints))]
+        
+        with multiprocessing.Pool(processes=processCnt) as pool:
+            result = pool.map(self._findAndMeasure, input)
+        
         print("...Done\n")
         return result
 

@@ -19,16 +19,16 @@ from sklearn.ensemble import RandomForestClassifier
 
 RESULT_FILE_NAME = "./result.txt"
 
-FREQ_CRITERION = 'gini'
+FREQ_CRITERION = 'entropy'
 ORDER_CRITERION = 'gini'
-FREQ_ESTIMATORS = 300
-ORDER_ESTIMATORS = 300
-FERQ_MAX_DEPTH = 25  
-ORDER_MAX_DEPTH = 11
+FREQ_ESTIMATORS = 35
+ORDER_ESTIMATORS = 155
+FERQ_MAX_DEPTH = 5  
+ORDER_MAX_DEPTH = 7
 FREQ_MIN_SAMPLES_SPLIT = 2
-ORDER_MIN_SAMPLES_SPLIT = 3
-FREQ_MIN_SAMPLES_LEAF = 1
-OERDER_MIN_SAMPLES_LEAF = 11
+ORDER_MIN_SAMPLES_SPLIT = 6
+FREQ_MIN_SAMPLES_LEAF = 4
+OERDER_MIN_SAMPLES_LEAF = 12
 
 
 class Predictor(object):
@@ -267,13 +267,13 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(100):
+                for j in range(20):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
                     buffer.append(mdl.oob_score_)
                 score.append(np.mean(buffer))
             plt.figure(paraName)
-            plt.title(item + "model")
+            plt.title(item + " model")
             plt.plot(paraLst, score, linewidth=1)
             plt.xlabel(paraName)
             plt.ylabel("score")
@@ -285,7 +285,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(100):
+                for j in range(20):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
@@ -304,7 +304,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(100):
+                for j in range(50):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=myMaxDepth, min_samples_split=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
@@ -323,7 +323,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(100):
+                for j in range(50):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=myMaxDepth, min_samples_split=myMinSamplesSplit,\
                                                  min_samples_leaf=i)
@@ -385,8 +385,7 @@ class Predictor(object):
                             paras.append([x, y, i, j, k, m, n])
         
         # Create a pool of worker processes
-        with multiprocessing.Pool(processes=8) as pool:
-        # Apply the feature extract function to each training case in parallel
+        with multiprocessing.Pool(processes=20) as pool:
             scores = pool.map(self._tryModel, paras)
 
         print("mean score:" + str(np.mean(scores)) + "\n")
@@ -423,10 +422,10 @@ if __name__ == "__main__":
     # db.loadPredictingFeature()
     db.loadTrainingFeature()
     predictor = Predictor()
-    predictor.tuning(db.trainingFeatureTable(), "frequency", "criterion")
-    # predictor.fineTune("order", db.trainingFeatureTable(),\
-    #                    ["gini"], [295, 300, 305], [9, 10, 11, 12, 13, 14],\
-    #                     [2, 3, 4, 5], [1, 10, 11, 12])
+    # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", range(1, 20, 1))
+    predictor.fineTune("order", db.trainingFeatureTable(),\
+                       ["gini"], [150, 155, 160, 165, 170], [5, 6, 7],\
+                        [6, 7], [11, 12, 13])
 
 
 
