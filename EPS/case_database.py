@@ -22,7 +22,7 @@ from scikits.umfpack import spsolve
 PROCESS_CNT = 16
 ERROR_MAX = 1e10
 ERROR_SAMPLE_COUNT = 500
-FREQ_LIMIT = 100e9
+FREQ_LIMIT = 50e9
 SAMPLE_STEP = 5e9
 TOTAL_ORDER = 10
 TRAINING_CASE_DIR = "../case/Training"

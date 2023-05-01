@@ -21,14 +21,14 @@ RESULT_FILE_NAME = "./result.txt"
 
 FREQ_CRITERION = 'entropy'
 ORDER_CRITERION = 'gini'
-FREQ_ESTIMATORS = 35
-ORDER_ESTIMATORS = 155
-FERQ_MAX_DEPTH = 5  
-ORDER_MAX_DEPTH = 7
+FREQ_ESTIMATORS = 30
+ORDER_ESTIMATORS = 500
+FERQ_MAX_DEPTH = 30  
+ORDER_MAX_DEPTH = 20
 FREQ_MIN_SAMPLES_SPLIT = 2
-ORDER_MIN_SAMPLES_SPLIT = 6
-FREQ_MIN_SAMPLES_LEAF = 4
-OERDER_MIN_SAMPLES_LEAF = 12
+ORDER_MIN_SAMPLES_SPLIT = 2
+FREQ_MIN_SAMPLES_LEAF = 1
+OERDER_MIN_SAMPLES_LEAF = 7
 
 
 class Predictor(object):
@@ -219,7 +219,7 @@ class Predictor(object):
 
         return
 
-    def tuning(self, trainingDataTable, item, paraName, paraLst = None):
+    def tuning(self, trainingDataTable, item, paraName, repetition, paraLst = None):
         '''
         Tune the model.
         '''
@@ -249,7 +249,7 @@ class Predictor(object):
             print("********Tune the criterion********\n")
             giniScore = []
             entropyScore = []
-            for i in range(100):
+            for i in range(repetition):
                 mdl = RandomForestClassifier(oob_score = True, criterion='gini')
                 mdl.fit(trainingLabel, np.ravel(trainingTarget))
                 giniScore.append(mdl.oob_score_)
@@ -267,7 +267,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(20):
+                for j in range(repetition):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
                     buffer.append(mdl.oob_score_)
@@ -285,7 +285,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(20):
+                for j in range(repetition):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
@@ -304,7 +304,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(50):
+                for j in range(repetition):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=myMaxDepth, min_samples_split=i)
                     mdl.fit(trainingLabel, np.ravel(trainingTarget))
@@ -323,7 +323,7 @@ class Predictor(object):
             score = []
             for i in paraLst:
                 buffer = []
-                for j in range(50):
+                for j in range(repetition):
                     mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
                                                  max_depth=myMaxDepth, min_samples_split=myMinSamplesSplit,\
                                                  min_samples_leaf=i)
@@ -422,10 +422,10 @@ if __name__ == "__main__":
     # db.loadPredictingFeature()
     db.loadTrainingFeature()
     predictor = Predictor()
-    # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", range(1, 20, 1))
+    # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", 30, range(4, 8, 1))
     predictor.fineTune("order", db.trainingFeatureTable(),\
-                       ["gini"], [150, 155, 160, 165, 170], [5, 6, 7],\
-                        [6, 7], [11, 12, 13])
+                       ["gini", 'entropy'], [490, 500, 510], [18, 20, 22],\
+                        [2, 3, 4,], [6, 7, 8])
 
 
 

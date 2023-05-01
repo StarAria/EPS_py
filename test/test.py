@@ -22,13 +22,13 @@ sys.path.append("..")
 from EPS.case_database import CaseDatabase
 from EPS.predictor import Predictor
 
-FREQ_LIMIT = 2e10
-TOTAL_ORDER = 15
+FREQ_LIMIT = 50e9
+TOTAL_ORDER = 10
 
 PREDICTING_CASE_NUM = 50
 
 # evaluate all the cases
-# db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting")
+#db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting")
 
 # build but do not evaluate. 
 db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting", build=False)
@@ -38,7 +38,7 @@ db.buildCaseData()
 db.loadTrainingFeature()
 
 # save the training data if needed.
-# db.saveTrainingFeature()
+#db.saveTrainingFeature()
 
 
 
