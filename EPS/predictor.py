@@ -423,9 +423,9 @@ if __name__ == "__main__":
     db.loadTrainingFeature()
     predictor = Predictor()
     # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", 30, range(4, 8, 1))
-    predictor.fineTune("order", db.trainingFeatureTable(),\
-                       ["gini", 'entropy'], [490, 500, 510], [18, 20, 22],\
-                        [2, 3, 4,], [6, 7, 8])
+    # predictor.fineTune("order", db.trainingFeatureTable(),\
+    #                    ["gini", 'entropy'], [480, 485, 490, 495, 500], [18, 20, 22],\
+    #                     [2, 3, 4,], [6, 7, 8])
 
 
 
