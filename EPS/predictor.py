@@ -69,18 +69,30 @@ class Predictor(object):
         trainingLabel = trainingDataTable[:, 1:-3]
         trainingFrequency = trainingDataTable[:, -2]
         trainingOrder = trainingDataTable[:, -3]
+        trainingUnionTarget = np.matrix([(str(trainingFrequency[i, 0]) + str(trainingOrder[i, 0]).zfill(2))\
+                                         for i in range(trainingDataTable.shape[0])]).T
 
-        if(item == "frequency" or item == "both"):
+        if(item == "frequency"):
             print("********Build the frequency predicting model********\n")
+            self._unionModel = None
             self._freqModel = RandomForestClassifier(oob_score = True)
             self._freqModel.fit(trainingLabel, np.ravel(trainingFrequency))
             print("Out-of bag score: " + str(self._freqModel.oob_score_) + "\n")
 
-        if(item == "order" or item == "both"):
+        if(item == "order"):
             print("********Build the order predicting model********\n")
+            self._unionModel = None
             self._orderModel = RandomForestClassifier(oob_score = True)
             self._orderModel.fit(trainingLabel, np.ravel(trainingOrder))
             print("Out-of bag score: " + str(self._orderModel.oob_score_) + "\n")
+
+        if(item == "both"):
+            print("********Build the frequency and order union predicting model********\n")
+            self._freqModel = None
+            self._orderModel = None
+            self._unionModel = RandomForestClassifier(oob_score = True)
+            self._unionModel.fit(trainingLabel, np.ravel(trainingUnionTarget))
+            print("Out-of bag score: " + str(self._unionModel.oob_score_) + "\n")
 
         return
 
@@ -103,17 +115,25 @@ class Predictor(object):
             featureTable = np.matrix(featureTable)
         predictingLabel = featureTable[:, 1:]
 
-        if(item == "frequency" or item == "both"):
+        if(item == "frequency"):
             print("********Predict 2nd expansion point frequency********\n")
             result = self._freqModel.predict(predictingLabel)
             self.freqPredictingResult = [[featureTable[i, 0], float(result[i])] for i in range(len(result))]
             print("...Done\n")
 
-        if(item == "order" or item == "both"):
+        if(item == "order"):
             print("********Predict 2nd expansion point order********\n")
             result = self._orderModel.predict(predictingLabel)
             self.orderPredictingResult = [[featureTable[i, 0], int(result[i])] for i in range(len(result))]
             print("...Done\n")
+
+        if(item == "both"):
+            print("********Predict 2nd expansion point order and frequency********\n")
+            result = self._unionModel.predict(predictingLabel)
+            self.orderPredictingResult = [[featureTable[i, 0], int(result[i][-2:])]\
+                                          for i in range(len(result))]
+            self.freqPredictingResult = [[featureTable[i, 0], float(result[i][:-2])]\
+                                          for i in range(len(result))]
 
         if(showResult):
             self.showPredictingResult(item=item, merge=True)
@@ -420,8 +440,12 @@ if __name__ == "__main__":
 
     db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting", build=False)
     # db.loadPredictingFeature()
+    db.buildCaseData()
     db.loadTrainingFeature()
+    db.extractPredtingFeature()
     predictor = Predictor()
+    predictor.buildModel(db.trainingFeatureTable())
+    predictor.predict(db.predictingFeatureTable())
     # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", 30, range(4, 8, 1))
     # predictor.fineTune("order", db.trainingFeatureTable(),\
     #                    ["gini", 'entropy'], [480, 485, 490, 495, 500], [18, 20, 22],\
