@@ -22,23 +22,34 @@ sys.path.append("..")
 from EPS.case_database import CaseDatabase
 from EPS.predictor import Predictor
 
-FREQ_LIMIT = 50e9
+FREQ_LIMIT = 500e9
 TOTAL_ORDER = 10
 
 PREDICTING_CASE_NUM = 50
 
+# =======================================================================================================================================
+# If do not have training_feature.txt, enable the lines below.
+
 # evaluate all the cases
 #db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting")
+
+# save the training data if needed.
+#db.saveTrainingFeature()
+
+# =======================================================================================================================================
+
+
+# =======================================================================================================================================
+# If already have training_feature.txt, enable the lines below.
 
 # build but do not evaluate. 
 db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting", build=False)
 db.buildCaseData()
 
 # load from file if saved before
-db.loadTrainingFeature()
+db.loadTrainingFeature("./training_feature.txt")
 
-# save the training data if needed.
-#db.saveTrainingFeature()
+# =======================================================================================================================================
 
 
 
@@ -151,8 +162,12 @@ predictingError = pe0
 
 errorReductionRate = [((midPointError[i][1] - predictingError[i][1]) / midPointError[i][1])\
                       for i in range(PREDICTING_CASE_NUM)]
-
 meanRateReduction = mean(errorReductionRate)
+
+#midPointErrorMean = mean([midPointError[i][1] for i in range(PREDICTING_CASE_NUM)])
+#predictingErrorMean = mean([predictingError[i][1] for i in range(PREDICTING_CASE_NUM)])
+#ErrorMeanReduction = 1 - predictingErrorMean / midPointErrorMean
+
 
 # plot error and error reduction rate
 plt.figure("Error reduction rate")
@@ -183,6 +198,8 @@ for i in range(PREDICTING_CASE_NUM):
           str(predictingError[i][1]) + "\t\t" + str(errorReductionRate[i]))
 
 print("Average error rate reduction: " + str(100*meanRateReduction) + "%\n")
+
+#print("Error sum reduction: " + str(100*ErrorMeanReduction) + "%\n")
 
 count = len(list(filter(lambda x: x > 0, errorReductionRate)))
 

@@ -21,14 +21,28 @@ RESULT_FILE_NAME = "./result.txt"
 
 FREQ_CRITERION = 'entropy'
 ORDER_CRITERION = 'gini'
+#UNION_CRITERION = 'entropy' /50G
+UNION_CRITERION = 'gini'
+
 FREQ_ESTIMATORS = 30
 ORDER_ESTIMATORS = 500
-FERQ_MAX_DEPTH = 30  
+#UNION_ESTIMATORS = 500 /50G
+UNION_ESTIMATORS = 500
+
+FERQ_MAX_DEPTH = 30
 ORDER_MAX_DEPTH = 20
+#UNION_MAX_DEPTH = 20 /50G
+UNION_MAX_DEPTH = 5
+
 FREQ_MIN_SAMPLES_SPLIT = 2
 ORDER_MIN_SAMPLES_SPLIT = 2
+#UNION_MIN_SAMPLES_SPLIT = 3 /50G
+UNION_MIN_SAMPLES_SPLIT = 5
+
 FREQ_MIN_SAMPLES_LEAF = 1
-OERDER_MIN_SAMPLES_LEAF = 7
+ORDER_MIN_SAMPLES_LEAF = 7
+#UNION_MIN_SAMPLES_LEAF = 4 /50G
+UNION_MIN_SAMPLES_LEAF = 1
 
 
 class Predictor(object):
@@ -52,16 +66,16 @@ class Predictor(object):
             self.predict(db.predictingFeatureTable())
         return
 
-    def buildModel(self, trainingDataTable, item = "both"):
+    def buildModel(self, trainingDataTable, item = "union"):
         '''
         Build 2nd expansion point frequency and order predicting model.
         trainingDataTable: Data of cases to train the model.
         item: "frequency" ---- Build 2nd expansion point frequency predicting model.
               "order" ---- Build 2nd expansion point order predicting model.
-              "both" ---- Build both model.
+              "union" ---- Build union model.
               otherwise ---- Do not build.
         '''
-        if(item not in ["frequency", "order", "both"]):
+        if(item not in ["frequency", "order", "union"]):
             raise ValueError("Unknown parameter \"item=" + item + "\"")
         
         if(type(trainingDataTable) != np.matrix):
@@ -74,41 +88,43 @@ class Predictor(object):
 
         if(item == "frequency"):
             print("********Build the frequency predicting model********\n")
-            self._unionModel = None
-            self._freqModel = RandomForestClassifier(oob_score = True)
+            self._freqModel = RandomForestClassifier(oob_score = True, criterion=FREQ_CRITERION, n_estimators=FREQ_ESTIMATORS,\
+                                                     max_depth=FERQ_MAX_DEPTH, min_samples_split=FREQ_MIN_SAMPLES_SPLIT,\
+                                                     min_samples_leaf=FREQ_MIN_SAMPLES_LEAF)
             self._freqModel.fit(trainingLabel, np.ravel(trainingFrequency))
             print("Out-of bag score: " + str(self._freqModel.oob_score_) + "\n")
 
         if(item == "order"):
             print("********Build the order predicting model********\n")
-            self._unionModel = None
-            self._orderModel = RandomForestClassifier(oob_score = True)
+            self._orderModel = RandomForestClassifier(oob_score = True, criterion=ORDER_CRITERION, n_estimators=ORDER_ESTIMATORS,\
+                                                      max_depth=ORDER_MAX_DEPTH, min_samples_split=ORDER_MIN_SAMPLES_SPLIT,\
+                                                      min_samples_leaf=ORDER_MIN_SAMPLES_LEAF)
             self._orderModel.fit(trainingLabel, np.ravel(trainingOrder))
             print("Out-of bag score: " + str(self._orderModel.oob_score_) + "\n")
 
-        if(item == "both"):
+        if(item == "union"):
             print("********Build the frequency and order union predicting model********\n")
-            self._freqModel = None
-            self._orderModel = None
-            self._unionModel = RandomForestClassifier(oob_score = True)
+            self._unionModel = RandomForestClassifier(oob_score = True, criterion=UNION_CRITERION, n_estimators=UNION_ESTIMATORS,\
+                                                      max_depth=UNION_MAX_DEPTH, min_samples_split=UNION_MIN_SAMPLES_SPLIT,\
+                                                      min_samples_leaf=UNION_MIN_SAMPLES_SPLIT)
             self._unionModel.fit(trainingLabel, np.ravel(trainingUnionTarget))
             print("Out-of bag score: " + str(self._unionModel.oob_score_) + "\n")
 
         return
 
-    def predict(self, featureTable, item = "both", showResult = True,\
+    def predict(self, featureTable, item = "union", showResult = True,\
                 dumpFile = True):
         '''
         Predict 2nd expansion point frequency and order.
         featureTable: Feature data of cases to be predicted.
         item: "frequency" ---- Build 2nd expansion point frequency predicting model.
               "order" ---- Build 2nd expansion point order predicting model.
-              "both" ---- Build both model.
+              "union" ---- Build union model.
               otherwise ---- Do not build.
         showResult: Print predicting result. True as default.
         dumpFile: Dump predicting result to txt file. True as default.
         '''
-        if(item not in ["frequency", "order", "both"]):
+        if(item not in ["frequency", "order", "union"]):
             raise ValueError("Unknown parameter \"item=" + item + "\"")
 
         if(type(featureTable) != np.matrix):
@@ -127,13 +143,14 @@ class Predictor(object):
             self.orderPredictingResult = [[featureTable[i, 0], int(result[i])] for i in range(len(result))]
             print("...Done\n")
 
-        if(item == "both"):
+        if(item == "union"):
             print("********Predict 2nd expansion point order and frequency********\n")
             result = self._unionModel.predict(predictingLabel)
             self.orderPredictingResult = [[featureTable[i, 0], int(result[i][-2:])]\
                                           for i in range(len(result))]
             self.freqPredictingResult = [[featureTable[i, 0], float(result[i][:-2])]\
                                           for i in range(len(result))]
+            print("...Done\n")
 
         if(showResult):
             self.showPredictingResult(item=item, merge=True)
@@ -143,36 +160,36 @@ class Predictor(object):
 
         return
 
-    def showPredictingResult(self, item = "both", merge = False):
+    def showPredictingResult(self, item = "union", merge = False):
         '''
         Show the predicting result of 2nd expansion point.
         item: "frequency" ---- Print 2nd expansion point frequency predicting result.
               "order" ---- Print 2nd expansion point order predicting model.
-              "both" ---- Print both Result.
+              "union" ---- Print union Result.
               otherwise ---- Do not print.
         merge: Merge the frequency and order predict result table. 
                Ensure that the two result are of the same cases before set merge = True.
-               valid only if item = True.
+               valid only if item = 'union'.
         '''
-        if(item not in ["frequency", "order", "both"]):
+        if(item not in ["frequency", "order", "union"]):
             raise ValueError("Unknown parameter \"item=" + item + "\"")
 
         print("********Predicting Result********\n")
-        if ((item == "frequency") or (item == "both" and not merge)):
+        if ((item == "frequency") or (item == "union" and not merge)):
             print("Frequency predicting result:")
             print("\tCase\t\tFrequency")
             for case in self.freqPredictingResult:
                 print("\t" + case[0] + "\t\t" + str(case[1]))
             print("\n")
 
-        if ((item == "order") or (item == "both" and not merge)):
+        if ((item == "order") or (item == "union" and not merge)):
             print("Order predicting result:")
             print("\tCase\t\tOrder")
             for case in self.orderPredictingResult:
                 print("\t" + case[0] + "\t\t" + str(case[1]))
             print("\n")
 
-        if (item == "both" and merge):
+        if (item == "union" and merge):
             print("Predicting result:")
             print("\tCase\t\tOrder\t\tFrequency")
             for i in range(len(self.orderPredictingResult)):
@@ -183,21 +200,21 @@ class Predictor(object):
         return
         
 
-    def savePredictingResult(self, item = "both", merge = False, fileName = RESULT_FILE_NAME):
+    def savePredictingResult(self, item = "union", merge = False, fileName = RESULT_FILE_NAME):
         '''
         Dump predicting result to txt file.
         item: "frequency" ---- Dump 2nd expansion point frequency predicting result.
               "order" ---- Dump 2nd expansion point order predicting result.
-              "both" ---- Dump both result.
+              "union" ---- Dump union result.
               otherwise ---- Do not dump.
         merge: Merge the frequency and order predict result table. 
                Ensure that the two result are of the same cases before set merge = True.
                valid only if item = True.        
         '''
-        if(item not in ["frequency", "order", "both"]):
+        if(item not in ["frequency", "order", "union"]):
             raise ValueError("Unknown parameter \"item=" + item + "\"")
 
-        if ((item == "frequency") or (item == "both" and not merge)):
+        if ((item == "frequency") or (item == "union" and not merge)):
             dotIndex = fileName.rfind('.')
             if(dotIndex == -1):
                 realFileName = fileName + "_frequency"
@@ -212,7 +229,7 @@ class Predictor(object):
                     f.write(line)
             print("...Done\n")
 
-        if ((item == "order") or (item == "both" and not merge)):
+        if ((item == "order") or (item == "union" and not merge)):
             dotIndex = fileName.rfind('.')
             if(dotIndex == -1):
                 realFileName = fileName + "_order"
@@ -227,7 +244,7 @@ class Predictor(object):
                     f.write(line)
             print("...Done\n")
 
-        if (item == "both" and merge):
+        if (item == "union" and merge):
             print("********Dump predicting result********\n")
             print("Target: " + fileName)
             with open(fileName, 'w') as f:
@@ -243,7 +260,7 @@ class Predictor(object):
         '''
         Tune the model.
         '''
-        if(item not in ["frequency", "order"]):
+        if(item not in ["frequency", "order", "union"]):
             raise ValueError("Unknown parameter \"item=" + item + "\"")
         
         if(type(trainingDataTable) != np.matrix):
@@ -257,13 +274,21 @@ class Predictor(object):
             myMaxDepth = FERQ_MAX_DEPTH
             myMinSamplesSplit = FREQ_MIN_SAMPLES_SPLIT
             myMinSamplesLeaf = FREQ_MIN_SAMPLES_LEAF
-        else:
+        if(item == "order"):
             trainingTarget = trainingDataTable[:, -3]
             myCriterion = ORDER_CRITERION
             myEstimators = ORDER_ESTIMATORS
             myMaxDepth = ORDER_MAX_DEPTH
             myMinSamplesSplit = ORDER_MIN_SAMPLES_SPLIT
-            myMinSamplesLeaf = OERDER_MIN_SAMPLES_LEAF
+            myMinSamplesLeaf = ORDER_MIN_SAMPLES_LEAF
+        if(item == "union"):
+            trainingTarget = np.matrix([(str(trainingDataTable[i, -3]) + str(trainingDataTable[i, -2]).zfill(2))\
+                                         for i in range(trainingDataTable.shape[0])]).T
+            myCriterion = UNION_CRITERION
+            myEstimators = UNION_ESTIMATORS
+            myMaxDepth = UNION_MAX_DEPTH
+            myMinSamplesSplit = UNION_MIN_SAMPLES_SPLIT
+            myMinSamplesLeaf = UNION_MIN_SAMPLES_LEAF
 
         if(paraName == 'criterion'):
             print("********Tune the criterion********\n")
@@ -369,8 +394,8 @@ class Predictor(object):
         score = []
         for i in range(100):
             mdl = RandomForestClassifier(oob_score = True, criterion=myCriterion, n_estimators=myEstimators,\
-                                 max_depth=myMaxDepth, min_samples_split=myMinSamplesSplit,\
-                                 min_samples_leaf=myMinSamplesLeaf)
+                                         max_depth=myMaxDepth, min_samples_split=myMinSamplesSplit,\
+                                         min_samples_leaf=myMinSamplesLeaf)
             mdl.fit(x, np.ravel(y))
             score.append(mdl.oob_score_)
 
@@ -384,7 +409,7 @@ class Predictor(object):
         '''
 
         print("********Fine tune********\n")
-        if(item not in ["frequency", "order"]):
+        if(item not in ["frequency", "order", "union"]):
             raise ValueError("Unknown parameter \"item=" + item + "\"")
         
         if(type(trainingDataTable) != np.matrix):
@@ -393,8 +418,11 @@ class Predictor(object):
 
         if(item == "frequency"):
             y = trainingDataTable[:, -2]
-        else:
+        if(item == "order"):
             y = trainingDataTable[:, -3]
+        if(item == "union"):
+            y = np.matrix([(str(trainingDataTable[i, -3]) + str(trainingDataTable[i, -2]).zfill(2))\
+                            for i in range(trainingDataTable.shape[0])]).T
 
         paras = []
         for i in criterion_lst:
@@ -440,16 +468,16 @@ if __name__ == "__main__":
 
     db = CaseDatabase(trainingCaseDir="../case/Training", predictingCaseDir="../case/Predicting", build=False)
     # db.loadPredictingFeature()
-    db.buildCaseData()
+    # db.buildCaseData()
     db.loadTrainingFeature()
-    db.extractPredtingFeature()
+    # db.extractPredtingFeature()
     predictor = Predictor()
-    predictor.buildModel(db.trainingFeatureTable())
-    predictor.predict(db.predictingFeatureTable())
-    # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", 30, range(4, 8, 1))
-    # predictor.fineTune("order", db.trainingFeatureTable(),\
-    #                    ["gini", 'entropy'], [480, 485, 490, 495, 500], [18, 20, 22],\
-    #                     [2, 3, 4,], [6, 7, 8])
+    # predictor.buildModel(db.trainingFeatureTable(), item="frequency")
+    # predictor.predict(db.predictingFeatureTable(), item="order")
+    # predictor.tuning(db.trainingFeatureTable(), "union", "min_samples_leaf", 100, range(1, 10, 1))
+    predictor.fineTune("union", db.trainingFeatureTable(),\
+                        ['entropy'], range(450, 560, 10), [5],\
+                         [4, 5], [1, 4])
 
 
 

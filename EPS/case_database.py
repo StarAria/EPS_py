@@ -21,9 +21,9 @@ from scikits.umfpack import spsolve
 # constant
 PROCESS_CNT = 16
 ERROR_MAX = 1e10
-ERROR_SAMPLE_COUNT = 500
-FREQ_LIMIT = 50e9
-SAMPLE_STEP = 5e9
+ERROR_SAMPLE_COUNT = 400
+FREQ_LIMIT = 500e9
+SAMPLE_STEP = 20e9
 TOTAL_ORDER = 10
 TRAINING_CASE_DIR = "../case/Training"
 PREDICTING_CASE_DIR = "../case/Predicting"
@@ -177,7 +177,7 @@ class CaseData(object):
         The 1st expansion point is always at 0Hz.
         totalOrder: the sum of the order after reducion on point 1 and 2.
         maxFreq: maximum frequency of the 2nd expansion point.
-        step: sample step of the 2nd expansion point order.
+        step: sample step of the 2nd expansion point frequency.
         '''
         feature = self.featureExtract()
         error = ERROR_MAX
@@ -227,6 +227,8 @@ class CaseDatabase(object):
             self.buildCaseData()
             self.measureTrainingData()
             self.extractPredtingFeature()
+            self.savePredictingFeature()
+            self.saveTrainingFeature()
 
         else:
             self._predictingCaseList = []
@@ -277,8 +279,8 @@ class CaseDatabase(object):
                  "predicting" ---- Rebuild _predictingCaseList from predictingDir.
                  "both" ---- Rebuild both dir.
                  otherwise ---- Do not rebuild.
-        trainingDir: training case directory. self. as default.
-        predictingDir: predicting case directory. PREDICTING_CASE_DIR as default.
+        trainingDir: training case directory. self.trainingCaseDir as default.
+        predictingDir: predicting case directory. self.predictingCaseDir as default.
         '''
         if(dataSet not in ["training", "predicting", "both"]):
             raise ValueError("Unknown parameter \"dataset=" + dataSet + "\"")
