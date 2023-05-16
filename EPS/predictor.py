@@ -49,7 +49,7 @@ class Predictor(object):
     '''
     Expansion point predictor using RandomForest algorythm.
     Need data from CaseDatabase.
-    Attributes: _freqModel, _orderModel, freqPredictingResult, orderPredictingResult, tuning
+    Attributes: _freqModel, _orderModel, _unionModel, freqPredictingResult, orderPredictingResult, tuning
     Function: buildModel, predict, showOobError, showPredictingResult, savePredictingResult
     '''
 
@@ -470,7 +470,7 @@ if __name__ == "__main__":
     # db.loadPredictingFeature()
     # db.buildCaseData()
     db.loadTrainingFeature()
-    # db.extractPredtingFeature()
+    # db.extractPredictingFeature()
     predictor = Predictor()
     # predictor.buildModel(db.trainingFeatureTable(), item="frequency")
     # predictor.predict(db.predictingFeatureTable(), item="order")

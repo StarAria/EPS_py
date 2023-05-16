@@ -211,7 +211,7 @@ class CaseDatabase(object):
     Database for cases. Training and predicting cases are included.
     Apply access and parser to outer files.
     Attributes: _trainingCaseList, _predictingCaseList, trainingFeatureTable, predictingFeatureTable
-    Function: parser, buildCaseData, measureTrainingData, extractPredtingFeature, trainingList, predictingList, 
+    Function: parser, buildCaseData, measureTrainingData, extractPredictingFeature, trainingList, predictingList, 
     saveTrainingFeature, savePredictingFeature, loadTrainingFeature, loadPredictingFeature
     '''
 
@@ -226,7 +226,7 @@ class CaseDatabase(object):
         if build:
             self.buildCaseData()
             self.measureTrainingData()
-            self.extractPredtingFeature()
+            self.extractPredictingFeature()
             self.savePredictingFeature()
             self.saveTrainingFeature()
 
@@ -242,7 +242,7 @@ class CaseDatabase(object):
         '''
         Read and build sparse matrix from file.
         Matrix files in COO format are supported.
-        Do not construct matrix since size are unknown.
+        Do not construct matrix since size is unknown.
         '''
         # read the file and extract the data
         data = np.loadtxt(fileName)
@@ -361,7 +361,7 @@ class CaseDatabase(object):
         print("...Done\n")
         return
 
-    def extractPredtingFeature(self):
+    def extractPredictingFeature(self):
         '''
         Build _predictingFeatureTable from _predictingCaseList.
         This method will delete the existing _predictingFeatureTable.
@@ -626,7 +626,7 @@ if __name__ == "__main__":
     print(db.trainingFeatureTable()[0])
     print(db.trainingFeatureTable()[399])
 
-    # db.extractPredtingFeature()
+    # db.extractPredictingFeature()
     print(len(db.predictingFeatureTable()))
     print(db.predictingFeatureTable()[0])
     print(db.predictingFeatureTable()[99])
