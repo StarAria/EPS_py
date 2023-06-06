@@ -15,16 +15,16 @@ import multiprocessing
 import numpy as np
 from scipy.sparse import *
 from scipy import constants
-from scipy.linalg import solve
+from scipy.linalg import solve, orth
 from scikits.umfpack import spsolve
 
 # constant
 PROCESS_CNT = 16
 ERROR_MAX = 1e10
-ERROR_SAMPLE_COUNT = 400
+ERROR_SAMPLE_COUNT = 500
 FREQ_LIMIT = 500e9
 SAMPLE_STEP = 20e9
-TOTAL_ORDER = 10
+TOTAL_ORDER = 5
 TRAINING_CASE_DIR = "../case/Training"
 PREDICTING_CASE_DIR = "../case/Predicting"
 
@@ -190,15 +190,16 @@ class CaseData(object):
                 s1 = 0
                 s2 = j
                 try:
-                    v1 = self.arnoldi(k1, s1) 
+                    v1 = self.arnoldi(k1, s1)
                     v2 = self.arnoldi(k2, s2)
-                    error1 = self.errorEval(v1, maxFreq, sampleCnt)
-                    error2 = self.errorEval(v2, maxFreq, sampleCnt)
+                    v = np.concatenate((v1, v2), axis=1)
+                    q = np.matrix(orth(v))
+                    caseError = self.errorEval(q, maxFreq, sampleCnt)
                 except(np.linalg.LinAlgError):
                     j = j + step
                     continue
-                if error1 + error2 <= error:
-                    error = error1 + error2
+                if caseError < error:
+                    error = caseError
                     result = feature + [i, j, error]
                 j = j + step
 
@@ -470,9 +471,10 @@ class CaseDatabase(object):
                 #    error = ERROR_MAX
                 v1 = case.arnoldi(k1, s1) 
                 v2 = case.arnoldi(k2, s2)
-                error1 = case.errorEval(v1, maxFreq, sampleCnt)
-                error2 = case.errorEval(v2, maxFreq, sampleCnt)
-                measureData.append([case.name, error1+error2])
+                v = np.concatenate((v1, v2), axis=1)
+                q = np.matrix(orth(v))
+                caseError = case.errorEval(q, maxFreq, sampleCnt)
+                measureData.append([case.name, caseError])
                 print("case " + case.name + " done.")
 
         if(dataSet == "both" or dataSet == "predicting"):
@@ -490,9 +492,10 @@ class CaseDatabase(object):
                 #    error = ERROR_MAX
                 v1 = case.arnoldi(k1, s1) 
                 v2 = case.arnoldi(k2, s2)
-                error1 = case.errorEval(v1, maxFreq, sampleCnt)
-                error2 = case.errorEval(v2, maxFreq, sampleCnt)
-                measureData.append([case.name, error1+error2])
+                v = np.concatenate((v1, v2), axis=1)
+                q = np.matrix(orth(v))
+                caseError = case.errorEval(q, maxFreq, sampleCnt)
+                measureData.append([case.name, caseError])
                 print("case " + case.name + " done.")
         
         print("...All done\n")
@@ -535,10 +538,11 @@ class CaseDatabase(object):
         #    error = ERROR_MAX
         v1 = case.arnoldi(k1, s1) 
         v2 = case.arnoldi(k2, s2)
-        error1 = case.errorEval(v1, maxFreq, sampleCnt)
-        error2 = case.errorEval(v2, maxFreq, sampleCnt)
+        v = np.concatenate((v1, v2), axis=1)
+        q = np.matrix(orth(v))
+        caseError = case.errorEval(q, maxFreq, sampleCnt)
         print("case " + name + " done.")
-        return([name, error1 + error2])
+        return([name, caseError])
         
 
     
@@ -574,77 +578,8 @@ class CaseDatabase(object):
 
 if __name__ == "__main__":
 
-    db = CaseDatabase(False)
-    # t = CaseData("414", 10, 1)
-    # [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_B.txt")
-    # t.setB(coo_matrix((values, (rows, cols)), shape=(10, 1)))
-    # [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_C.txt")
-    # t.setC(coo_matrix((values, (rows, cols)), shape=(10, 10)))
-    # [rows, cols, values] = db.parser(PREDICTING_CASE_DIR + "/414/414_G.txt")
-    # t.setG(coo_matrix((values, (rows, cols)), shape=(10, 10)))
-
-    # print(t.b)
-    # print(t.c)
-    # print(t.g)
-
-    # b = coo_matrix(([-1], ([0], [0])), shape=(10,1))
-    # c = coo_matrix(([1.000000e-18, 2.388640e-17, 2.388640e-17, 1.319750e-16, 1.145700e-17, 1.145700e-17],\
-    #                 ([1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6])),\
-    #                 shape=(10,10))
-    # g = np.matrix([[6.171022, 0, 0, 0, -5.080113e+00, 0, 0, 0, 0, -9.090909e-02],\
-    #               [0, 5.171022, -9.090909e-02, 0, 0, 0, 0, -5.080113e+00, 0, 0],\
-    #               [0, -9.090909e-02, 8.849164, 0, 0, 0, 0, 0, -8.758255e+00, 0],\
-    #               [0, 0, 0, 8.767346e+00, 0, 0, -9.090909e-03, 0, 0, -8.758255e+00],\
-    #               [-5.080113, 0, 0, 0, 5.186578e+00, 0, 0, -1.064646e-01, 0, 0],\
-    #               [0, 0, 0, 0, 0, 9.090909e-03, 0, 0, -9.090909e-03, 0],\
-    #               [0, 0, 0, -9.090909e-03, 0, 0, 9.090909e-03, 0, 0, 0],\
-    #               [0, -5.080113, 0, 0, -1.064646e-01, 0, 0, 5.186578e+00, 0, 0],\
-    #               [0, 0, -8.758255, 0, 0, -9.090909e-03, 0, 0, 8.767346e+00, 0],\
-    #               [-9.090909e-02, 0, 0, -8.758255e+00, 0, 0, 0, 0, 0, 8.849164e+00]],)
-    
-    # v1 = t.arnoldi(4, 0)
-    # v2 = t.arnoldi(11, 5e9)
-
-    # print(v1)
-
-    # print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
-    # print(t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
-    # print(t.errorEval(v1, FREQ_LIMIT, ERROR_SAMPLE_COUNT) + t.errorEval(v2, FREQ_LIMIT, ERROR_SAMPLE_COUNT))
-
-    # print(t.measureMinError(15, FREQ_LIMIT, 1e9))
-
-    print(len(db.trainingFeatureTable()))
-    print(len(db.predictingFeatureTable()))
-
-    db.loadPredictingFeature()
+    db = CaseDatabase(build = False)
+    db.buildCaseData()
     db.loadTrainingFeature()
-    # db.buildCaseData()
-    # print(len(db.trainingFeatureTable()))
-    # print(len(db.predictingFeatureTable()))
-    # db.measureTrainingData()
-    print(len(db.trainingFeatureTable()))
-    print(db.trainingFeatureTable()[0])
-    print(db.trainingFeatureTable()[399])
-
-    # db.extractPredictingFeature()
-    print(len(db.predictingFeatureTable()))
-    print(db.predictingFeatureTable()[0])
-    print(db.predictingFeatureTable()[99])
-
-    # db.savePredictingFeature()
-    # db.saveTrainingFeature()
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
+    db.loadPredictingFeature()
+    print(db.measureCases([["414", 240e9, 1]]))
