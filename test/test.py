@@ -23,7 +23,7 @@ from EPS.case_database import CaseDatabase
 from EPS.predictor import Predictor
 
 FREQ_LIMIT = 500e9
-TOTAL_ORDER = 10
+TOTAL_ORDER = 5
 
 PREDICTING_CASE_NUM = 50
 
@@ -98,6 +98,11 @@ for i in range(PREDICTING_CASE_NUM):
     midPoints.append([pd0.freqPredictingResult[i][0],\
                       FREQ_LIMIT / 2,\
                       int(TOTAL_ORDER / 2)])
+
+#for i in range(PREDICTING_CASE_NUM):
+#    midPoints.append([pd0.freqPredictingResult[i][0],\
+#                      FREQ_LIMIT,\
+#                      1])
 midPointError = db.measureCases(midPoints)
 
 # measure error with predict result
@@ -164,6 +169,10 @@ errorReductionRate = [((midPointError[i][1] - predictingError[i][1]) / midPointE
                       for i in range(PREDICTING_CASE_NUM)]
 meanRateReduction = mean(errorReductionRate)
 
+errorIncreaseRate = [((predictingError[i][1] - predictingDataPoint[i][2]) / predictingDataPoint[i][2])\
+                      for i in range(PREDICTING_CASE_NUM)]
+meanRateIncrease = mean(errorIncreaseRate)
+
 #midPointErrorMean = mean([midPointError[i][1] for i in range(PREDICTING_CASE_NUM)])
 #predictingErrorMean = mean([predictingError[i][1] for i in range(PREDICTING_CASE_NUM)])
 #ErrorMeanReduction = 1 - predictingErrorMean / midPointErrorMean
@@ -179,18 +188,47 @@ plt.savefig("error_reduction_rate")
 
 plt.figure("Error with predicting point and mid point")
 plt.plot(range(PREDICTING_CASE_NUM), [predictingError[i][1] for i in range(PREDICTING_CASE_NUM)],\
-      'b', label="error with predicting point", linewidth = 1)
+      'r', label="error with predicting point", linewidth = 1.5)
 plt.plot(range(PREDICTING_CASE_NUM), [midPointError[i][1] for i in range(PREDICTING_CASE_NUM)],\
-      'r', label="error with mid point", linewidth = 1)
+      'b', label="error with mid point", linewidth = 1)
 plt.yscale('log')
 plt.xlabel("case")
 plt.ylabel("error")
 plt.title("Error with predicting point and mid point")
 plt.legend()
-plt.savefig("error")
+plt.savefig("error_mid_point")
+
+#plot min error, predicting point error and mid point error
+plt.figure("error comparison")
+plt.plot(range(PREDICTING_CASE_NUM), [predictingError[i][1] for i in range(PREDICTING_CASE_NUM)],\
+      'r', label="error with predicting point", linewidth = 1.5)
+plt.plot(range(PREDICTING_CASE_NUM), [midPointError[i][1] for i in range(PREDICTING_CASE_NUM)],\
+      'b', label="error with mid point", linewidth = 1)
+plt.plot(range(PREDICTING_CASE_NUM), [predictingDataPoint[i][2] for i in range(PREDICTING_CASE_NUM)],\
+      'g', label="min error", linewidth = 1)
+plt.yscale('log')
+plt.xlabel("case")
+plt.ylabel("error")
+plt.title("error comparison")
+plt.legend()
+plt.savefig("error_comparison")
+
+#plot min error and predicting point error
+plt.figure("min error and predicting point error")
+plt.plot(range(PREDICTING_CASE_NUM), [predictingError[i][1] for i in range(PREDICTING_CASE_NUM)],\
+      'r', label="error with predicting point", linewidth = 1.5)
+plt.plot(range(PREDICTING_CASE_NUM), [predictingDataPoint[i][2] for i in range(PREDICTING_CASE_NUM)],\
+      'g', label="min error", linewidth = 1)
+plt.yscale('log')
+plt.xlabel("case")
+plt.ylabel("error")
+plt.title("Error with predicting point and min error")
+plt.legend()
+plt.savefig("error_with_min_error")
+
 
 # print result
-print("********Result********\n")
+print("********Compare With mid point********\n")
 
 print("\tcase\t\terror with mid point\t\terror with predicting point\terror reduction rate")
 for i in range(PREDICTING_CASE_NUM):
@@ -204,3 +242,12 @@ print("Average error rate reduction: " + str(100*meanRateReduction) + "%\n")
 count = len(list(filter(lambda x: x > 0, errorReductionRate)))
 
 print("Improved case count: " + str(count) + " , " + str(len(errorReductionRate)) + " cases in total.\n")
+
+print("********Compare With Min Error********\n")
+
+print("\n\n\tcase\t\tmin error\t\t\terror with predicting point\terror increase rate")
+for i in range(PREDICTING_CASE_NUM):
+    print("\t" + predictingError[i][0] + "\t\t" + str(predictingDataPoint[i][2]) + "\t\t" +\
+          str(predictingError[i][1]) + "\t\t" + str(errorIncreaseRate[i]))
+
+print("Average error rate increase: " + str(100*meanRateIncrease) + "%\n")
