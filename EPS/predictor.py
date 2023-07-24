@@ -19,28 +19,28 @@ from sklearn.ensemble import RandomForestClassifier
 
 RESULT_FILE_NAME = "./result.txt"
 
-FREQ_CRITERION = 'entropy'
+FREQ_CRITERION = 'gini'
 ORDER_CRITERION = 'gini'
 #UNION_CRITERION = 'entropy' /50G
 #UNION_CRITERION = 'gini'
 
-FREQ_ESTIMATORS = 30
-ORDER_ESTIMATORS = 500
+FREQ_ESTIMATORS = 500
+ORDER_ESTIMATORS = 300
 #UNION_ESTIMATORS = 500 /50G
 #UNION_ESTIMATORS = 500
 
-FERQ_MAX_DEPTH = 30
-ORDER_MAX_DEPTH = 20
+FERQ_MAX_DEPTH = 6
+ORDER_MAX_DEPTH = 5
 #UNION_MAX_DEPTH = 20 /50G
 #UNION_MAX_DEPTH = 5
 
-FREQ_MIN_SAMPLES_SPLIT = 2
-ORDER_MIN_SAMPLES_SPLIT = 2
+FREQ_MIN_SAMPLES_SPLIT = 7
+ORDER_MIN_SAMPLES_SPLIT = 8
 #UNION_MIN_SAMPLES_SPLIT = 3 /50G
 #UNION_MIN_SAMPLES_SPLIT = 5
 
 FREQ_MIN_SAMPLES_LEAF = 1
-ORDER_MIN_SAMPLES_LEAF = 7
+ORDER_MIN_SAMPLES_LEAF = 1
 #UNION_MIN_SAMPLES_LEAF = 4 /50G
 #UNION_MIN_SAMPLES_LEAF = 1
 
@@ -412,14 +412,6 @@ class Predictor(object):
             
         print("\n...Done\n")
         return
-    
-    
-
-
-
-
-
-
 
 
 
@@ -438,10 +430,10 @@ if __name__ == "__main__":
     predictor = Predictor()
     # predictor.buildModel(db.trainingFeatureTable(), item="frequency")
     # predictor.predict(db.predictingFeatureTable(), item="order")
-    # predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", 100, range(1, 10, 1))
-    predictor.fineTune("order", db.trainingFeatureTable(),\
-                        ['entropy'], range(450, 560, 10), [5],\
-                         [4, 5], [1, 4])
+    predictor.tuning(db.trainingFeatureTable(), "order", "min_samples_leaf", 50, range(1, 15, 1))
+    #predictor.fineTune("order", db.trainingFeatureTable(),\
+    #                    ['entropy'], range(450, 560, 10), [5],\
+    #                     [4, 5], [1, 4])
 
 
 
